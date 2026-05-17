@@ -224,6 +224,7 @@ function tapPlayer(playerId) {
 
 function handleSwipe(playerId, direction) {
     if (possession.status !== 'playing' || possession.hasDisc !== playerId) return;
+    
     if (direction === 'right') {
         triggerHaptic(); let assist = possession.lastPasser;
         if (possession.currentPointEvents.length > 0) {
@@ -235,7 +236,17 @@ function handleSwipe(playerId, direction) {
         possession.currentPointEvents.push({ type: 'Goal', player: playerId, assist: assist, time: Date.now() }); savePoint('Won');
     } 
     else if (direction === 'left') {
-        triggerHaptic(); possession.currentPointEvents.push({ type: 'Turnover', player: playerId, time: Date.now() });
+        triggerHaptic(); 
+        
+        // Exact same logic used for goals to prevent double-counting drops
+        if (possession.currentPointEvents.length > 0) {
+            const lastEvent = possession.currentPointEvents[possession.currentPointEvents.length - 1];
+            if ((lastEvent.type === 'Pass' && lastEvent.to === playerId) || (lastEvent.type === 'Pickup/Block' && lastEvent.player === playerId)) {
+                possession.currentPointEvents.pop();
+            }
+        }
+        
+        possession.currentPointEvents.push({ type: 'Turnover', player: playerId, time: Date.now() });
         possession.hasDisc = null; possession.lastPasser = null; renderPlayView();
     }
 }
