@@ -63,6 +63,18 @@ function setActiveGame(id) {
     saveData(); switchTab('play-view');
 }
 
+function renameGame(event, gameId) {
+    event.stopPropagation();
+    triggerHaptic();
+    const game = state.games.find(g => g.id === gameId);
+    const newName = prompt("Rename Game:", game.name);
+    if (newName && newName.trim() !== "") {
+        game.name = newName.trim();
+        saveData();
+        renderSeasonView();
+    }
+}
+
 function openAssignGameModal(tournamentId) {
     triggerHaptic();
     const t = state.tournaments.find(t => t.id === tournamentId);
@@ -238,13 +250,18 @@ function savePoint(result) {
     saveData(); renderPlayView();
 }
 
-let touchstartX = 0;
+let touchstartX = 0; let touchstartY = 0;
 function bindGestures() {
     const rows = document.querySelectorAll('.list-row');
     rows.forEach(row => {
-        row.addEventListener('touchstart', e => { touchstartX = e.changedTouches[0].screenX; }, {passive: true});
+        row.addEventListener('touchstart', e => { 
+            touchstartX = e.changedTouches[0].screenX; 
+            touchstartY = e.changedTouches[0].screenY; 
+        }, {passive: true});
         row.addEventListener('touchend', e => {
-            const touchendX = e.changedTouches[0].screenX; const playerId = row.getAttribute('data-id');
+            const touchendX = e.changedTouches[0].screenX; const touchendY = e.changedTouches[0].screenY;
+            const playerId = row.getAttribute('data-id');
+            if (Math.abs(touchendY - touchstartY) > 15) return; // Ignore scrolling
             if (touchendX < touchstartX - 50) handleSwipe(playerId, 'left');
             else if (touchendX > touchstartX + 50) handleSwipe(playerId, 'right');
             else tapPlayer(playerId);
@@ -316,6 +333,7 @@ function importCSVData(event) {
 
 function clearAllData() { if(prompt("Type 'DELETE' to wipe all app data:") === "DELETE") { localStorage.removeItem('ultiProState'); location.reload(); } }
 
+
 // --- 5. THE ANALYTICS ENGINE (SYNERGY & LINEUP ASSISTANT) ---
 function setAnalyticsMode(mode) {
     triggerHaptic();
@@ -346,7 +364,7 @@ function toggleBuilderPlayer(playerId) {
                 if (builderCore.size >= 7) { alert("Core is full. To sub out, click an already selected player."); return; }
                 builderCore.add(playerId);
             } else {
-                builderSubOut.add(playerId); // Mark to sub out
+                builderSubOut.add(playerId); 
             }
         }
     }
@@ -357,7 +375,6 @@ function renderAnalyticsBuilder() {
     const container = document.getElementById('builder-roster');
     const mode = document.getElementById('assistant-mode').value;
     
-    // Clear subOuts if switching back to fill mode
     if (mode === 'fill' && builderSubOut.size > 0) builderSubOut.clear();
 
     let html = '';
@@ -385,13 +402,11 @@ function runLineupSuggestions() {
     } else { // replace
         if (activeCore.size !== 7) { container.innerHTML = `<div style="color:var(--danger); text-align:center;">Select exactly 7 players first.</div>`; return; }
         if (builderSubOut.size === 0) { container.innerHTML = `<div style="color:var(--danger); text-align:center;">Tap selected players to sub them out.</div>`; return; }
-        // Remove sub-outs from active core evaluation
         builderSubOut.forEach(id => activeCore.delete(id));
     }
 
-    // Mathematical Engine: Calculate Pairwise Scores with Margin Discounting
     let pairStats = {};
-    const ALPHA = 2; // Bayesian smoothing constant
+    const ALPHA = 2; 
     state.games.forEach(game => {
         let currentUs = 0; let currentThem = 0;
         game.history.forEach(pt => {
@@ -446,7 +461,6 @@ function runLineupSuggestions() {
     container.innerHTML = html;
 }
 
-// Data-Miner: "Active Touch" Group Synergy
 function getCombinations(arr, size) {
     let result = [];
     function combine(start, currentCombo) {
@@ -461,14 +475,13 @@ function runRawSynergy() {
     const container = document.getElementById('raw-results');
     const N = parseInt(document.getElementById('raw-size').value);
     
-    let groupStats = {}; // key: "id1,id2..." -> {ids, activePoints, won, passes, assists}
+    let groupStats = {}; 
 
     state.games.forEach(game => {
         game.history.forEach(pt => {
             if (!pt.events) return;
-            // 1. Map who interacted with whom
             let interactions = new Set();
-            let passCountMap = {}; // Pairwise passes
+            let passCountMap = {}; 
             let assistCountMap = {};
             
             pt.events.forEach(ev => {
@@ -488,13 +501,11 @@ function runRawSynergy() {
                 }
             });
 
-            // 2. Evaluate subsets. A subset ONLY gets credit if ALL members had an active touch/interaction on that point.
             if (pt.playerIds.length >= N) {
                 const subsets = getCombinations(pt.playerIds.sort(), N);
                 subsets.forEach(subset => {
-                    // Check if all members had an active touch
                     let allActive = subset.every(id => interactions.has(id));
-                    if (!allActive) return; // Skip ghost subsets!
+                    if (!allActive) return; 
 
                     const key = subset.join(',');
                     if (!groupStats[key]) groupStats[key] = { ids: subset, points: 0, won: 0, passes: 0, assists: 0 };
@@ -502,7 +513,6 @@ function runRawSynergy() {
                     groupStats[key].points++;
                     if (pt.result === 'Won') groupStats[key].won++;
                     
-                    // Sum internal subset passes/assists
                     for(let i=0; i<subset.length; i++) {
                         for(let j=i+1; j<subset.length; j++) {
                             const pairKey = [subset[i], subset[j]].sort().join(',');
@@ -516,7 +526,7 @@ function runRawSynergy() {
     });
 
     const results = Object.values(groupStats)
-        .filter(g => g.points >= 2) // Min threshold
+        .filter(g => g.points >= 2) 
         .sort((a,b) => {
             const winA = a.won/a.points; const winB = b.won/b.points;
             if (winB !== winA) return winB - winA;
@@ -710,10 +720,16 @@ function renderSeasonView() {
             
             tGames.forEach(g => {
                 const isGActive = g.id === state.activeGameId; const scoreText = getGameScore(g).text;
+                
+                // Using flex min-width:0 to allow ellipsis text-overflow without crushing the score wrap.
                 html += `
                 <div class="game-item ${isGActive ? 'active-game' : ''}" onclick="setActiveGame('${g.id}')">
-                    <div style="font-weight:bold; font-size:14px;">📄 ${g.name} <span style="font-weight:normal; color:#aaa; margin-left:8px;">${scoreText}</span></div>
+                    <div style="font-weight:bold; font-size:14px; display:flex; flex:1; min-width:0; margin-right:10px;">
+                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">📄 ${g.name}</span> 
+                        <span style="font-weight:normal; color:#aaa; margin-left:8px; white-space:nowrap;">${scoreText}</span>
+                    </div>
                     <div class="row-actions">
+                        <button class="icon-btn edit" onclick="renameGame(event, '${g.id}')">Rename</button>
                         <button class="icon-btn" onclick="removeGameFromTournament(event, '${g.id}')">Remove</button>
                         <button class="icon-btn delete" onclick="deleteGame(event, '${g.id}')">Del</button>
                     </div>
@@ -731,8 +747,14 @@ function renderSeasonView() {
             html += `
             <div class="folder-card" style="border-left-color: #333;" onclick="setActiveGame('${g.id}')">
                 <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div style="font-weight:bold; font-size:16px; ${isGActive ? 'color:var(--primary);' : ''}">📄 ${g.name} <span style="font-weight:normal; color:#aaa; margin-left:8px;">${scoreText}</span></div>
-                    <div class="row-actions"><button class="icon-btn delete" onclick="deleteGame(event, '${g.id}')">Del</button></div>
+                    <div style="font-weight:bold; font-size:16px; display:flex; flex:1; min-width:0; margin-right:10px; ${isGActive ? 'color:var(--primary);' : ''}">
+                        <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">📄 ${g.name}</span> 
+                        <span style="font-weight:normal; color:#aaa; margin-left:8px; white-space:nowrap;">${scoreText}</span>
+                    </div>
+                    <div class="row-actions">
+                        <button class="icon-btn edit" onclick="renameGame(event, '${g.id}')">Rename</button>
+                        <button class="icon-btn delete" onclick="deleteGame(event, '${g.id}')">Del</button>
+                    </div>
                 </div>
             </div>`;
         });
