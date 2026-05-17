@@ -56,10 +56,14 @@
         .slider-toggle.is-d .slider-bg { transform: translateX(100%); background: var(--danger); }
         .slider-label { flex: 1; text-align: center; line-height: 50px; font-size: 16px; font-weight: bold; color: white; z-index: 1; pointer-events: none; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
 
-        .row-actions { display: flex; gap: 8px; z-index: 10;}
-        .icon-btn { background: #333; border: 1px solid #555; color: white; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;}
-        .icon-btn.edit { background: var(--warning); color: black; border: none; font-weight: bold; }
+        /* Icon Buttons */
+        .row-actions { display: flex; gap: 6px; z-index: 10; align-items: center;}
+        .icon-btn { background: #333; border: 1px solid #555; color: white; padding: 0; border-radius: 6px; cursor: pointer; font-size: 16px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; transition: transform 0.1s;}
+        .icon-btn:active { transform: scale(0.9); }
+        .icon-btn.edit { background: var(--warning); color: black; border: none; }
         .icon-btn.delete { background: var(--danger); border: none; }
+        .icon-btn.remove { background: #555; border: none; }
+        .icon-btn.active-btn { background: var(--primary); border: none; color: white; }
 
         .state-banner { text-align: center; padding: 12px; font-size: 16px; font-weight: bold; border-radius: 8px; margin-bottom: 15px; background: #333;}
         .state-o { background: #1565C0; color: white; border: 2px solid #64B5F6;}
@@ -192,7 +196,7 @@
     <div id="assign-game-modal" class="full-modal">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
             <h2 id="assign-modal-title" style="margin:0;">Add Game to Folder</h2>
-            <button class="icon-btn" style="padding:10px 15px; font-size:16px;" onclick="triggerHaptic(); document.getElementById('assign-game-modal').style.display='none'">Close</button>
+            <button class="icon-btn" style="padding:10px 15px; width:auto; font-size:16px;" onclick="triggerHaptic(); document.getElementById('assign-game-modal').style.display='none'">Close</button>
         </div>
         <p style="color:var(--text-muted); margin-top:-10px;">Select a game below to move it into this tournament.</p>
         <div id="assign-game-list"></div>
@@ -201,7 +205,7 @@
     <div id="settings-modal" class="full-modal">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
             <h2 style="margin:0;">Settings & Data</h2>
-            <button class="icon-btn" style="padding:10px 15px; font-size:16px;" onclick="triggerHaptic(); document.getElementById('settings-modal').style.display='none'">Close</button>
+            <button class="icon-btn" style="padding:10px 15px; width:auto; font-size:16px;" onclick="triggerHaptic(); document.getElementById('settings-modal').style.display='none'">Close</button>
         </div>
         
         <button class="btn btn-secondary" onclick="triggerHaptic(); exportData();">Export Database Backup (.json)</button>
