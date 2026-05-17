@@ -1,5 +1,5 @@
 // CHANGE THIS NAME EVERY TIME YOU PUSH AN UPDATE (e.g., v4, v5, v6)
-const CACHE_NAME = 'ulti-pro-v4'; 
+const CACHE_NAME = 'ulti-pro-v5'; 
 
 const urlsToCache = [
   './',
