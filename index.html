@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Ultimate Pro Analytics</title>
+    <link rel="manifest" href="manifest.json">
+    <style>
+        :root { --bg: #121212; --surface: #1e1e1e; --primary: #4CAF50; --primary-dark: #388E3C; --text: #ffffff; --text-muted: #aaaaaa; --active: #2196F3; --danger: #f44336; --warning: #ff9800; --purple: #9C27B0; --info: #0288D1; --tier-s: #FFD700; --tier-a: #ff9800; --tier-b: #4CAF50;}
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 0; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+        .app-container { max-width: 500px; margin: 0 auto; display: flex; flex-direction: column; height: 100vh; position: relative;}
+        
+        /* Header */
+        .app-header { display: flex; justify-content: space-between; align-items: center; padding: 15px; background-color: var(--surface); border-bottom: 1px solid #333; z-index: 50;}
+        .app-title { font-size: 18px; font-weight: bold; letter-spacing: 0.5px;}
+        .settings-icon { font-size: 22px; cursor: pointer; padding: 0 5px; transition: transform 0.2s;}
+        .settings-icon:active { transform: rotate(90deg); }
+
+        .tabs { display: flex; background-color: var(--surface); border-bottom: 1px solid #333; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
+        .tabs::-webkit-scrollbar { display: none; }
+        .tab { flex: 1; min-width: 70px; padding: 15px 10px; text-align: center; font-size: 14px; font-weight: bold; color: var(--text-muted); cursor: pointer; transition: 0.2s;}
+        .tab.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
+        
+        .view { display: none; flex: 1; overflow-y: auto; padding: 15px; padding-bottom: 40px; }
+        .view.active { display: block; }
+        
+        /* Interactive Rows */
+        .list-row { display: flex; justify-content: space-between; align-items: center; background-color: var(--surface); padding: 15px; margin-bottom: 8px; border-radius: 8px; cursor: pointer; transition: transform 0.1s, background 0.2s; position: relative; overflow: hidden;}
+        .list-row:active { transform: scale(0.98); } 
+        .list-row.on-field { background-color: #263238; border: 1px solid #455A64; }
+        .list-row.has-disc { background-color: var(--active); color: white; border: 2px solid white; box-shadow: 0 0 10px rgba(33,150,243,0.5); transform: scale(1.02); z-index: 2;}
+        .list-row.last-passer { border: 2px dashed var(--warning); background-color: #3e2723; }
+        
+        .info-block { display: flex; flex-direction: column; gap: 4px; font-size: 16px; font-weight: bold; pointer-events: none; }
+        .info-sub { font-size: 12px; font-weight: normal; color: var(--text-muted); }
+        
+        h3 { margin-top: 20px; margin-bottom: 10px; color: var(--text-muted); font-size: 14px; text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 5px;}
+        
+        /* Dropdowns */
+        .select-dropdown { width: 100%; padding: 12px; background: #333; color: white; border: 1px solid #555; border-radius: 8px; font-size: 16px; margin-bottom: 15px; font-weight: bold; outline: none;}
+        .select-dropdown optgroup { font-style: normal; font-weight: bold; color: var(--primary); background: #222;}
+        .select-dropdown option { font-weight: normal; color: white; background: #333;}
+
+        /* Buttons */
+        .btn { display: flex; justify-content: center; align-items: center; width: 100%; box-sizing: border-box; padding: 16px; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; color: white; margin-bottom: 10px; cursor: pointer; text-align: center; transition: transform 0.1s;}
+        .btn:active { transform: scale(0.96); }
+        .btn-primary { background-color: var(--primary); }
+        .btn-danger { background-color: var(--danger); }
+        .btn-secondary { background-color: #424242; border: 1px solid #666; } 
+        .btn-info { background-color: var(--info); }
+        .btn-warning { background-color: var(--warning); color: black;}
+        
+        /* Animated O/D Slider Toggle */
+        .slider-toggle { position: relative; display: flex; width: 100%; height: 50px; background: #333; border-radius: 8px; margin-bottom: 15px; cursor: pointer; box-shadow: inset 0 2px 5px rgba(0,0,0,0.3); overflow: hidden; }
+        .slider-bg { position: absolute; top: 0; left: 0; width: 50%; height: 100%; background: var(--primary); transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), background-color 0.3s ease; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+        .slider-toggle.is-d .slider-bg { transform: translateX(100%); background: var(--danger); }
+        .slider-label { flex: 1; text-align: center; line-height: 50px; font-size: 16px; font-weight: bold; color: white; z-index: 1; pointer-events: none; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+
+        .row-actions { display: flex; gap: 8px; z-index: 10;}
+        .icon-btn { background: #333; border: 1px solid #555; color: white; padding: 8px 12px; border-radius: 4px; cursor: pointer; font-size: 14px;}
+        .icon-btn.edit { background: var(--warning); color: black; border: none; font-weight: bold; }
+        .icon-btn.delete { background: var(--danger); border: none; }
+
+        .state-banner { text-align: center; padding: 12px; font-size: 16px; font-weight: bold; border-radius: 8px; margin-bottom: 15px; background: #333;}
+        .state-o { background: #1565C0; color: white; border: 2px solid #64B5F6;}
+        .state-d { background: #C62828; color: white; border: 2px solid #EF5350;}
+
+        /* Modals */
+        .full-modal { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); overflow-y: auto; padding: 20px; box-sizing: border-box;}
+        #tree-modal { z-index: 100; }
+        #player-modal { z-index: 110; }
+        #assign-game-modal { z-index: 120; }
+        #settings-modal { z-index: 200; }
+
+        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;}
+        .stat-box { background: var(--surface); padding: 15px; border-radius: 8px; text-align: center;}
+        .stat-box .val { font-size: 24px; font-weight: bold; color: var(--primary); }
+        .stat-box .lbl { font-size: 12px; color: var(--text-muted); text-transform: uppercase;}
+
+        /* History Card & Leaderboard */
+        .history-card { background: var(--surface); padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #333; transition: transform 0.1s;}
+        .stat-line { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #333; transition: background 0.1s; }
+        .stat-line:last-child { border-bottom: none; }
+        .stat-line.clickable:active { background-color: #333; }
+
+        /* Passing Tree Flowchart */
+        .tree-container { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 20px 0; }
+        .tree-node { background: #333; border: 2px solid #555; padding: 10px 15px; border-radius: 20px; font-weight: bold; text-align: center; white-space: nowrap; cursor: pointer; transition: transform 0.1s;}
+        .tree-node:active { transform: scale(0.95); }
+        .tree-arrow { color: var(--text-muted); font-size: 20px; font-weight: bold; }
+        .goal-node { background: #FFD700; color: #000; border-color: #FFB300; box-shadow: 0 0 15px rgba(255,215,0,0.4); transform: scale(1.1); margin: 0 10px; }
+        .turn-node { background: #C62828; color: white; border-color: #EF5350; }
+        .divider-node { width: 100%; font-size: 12px; color: var(--warning); text-transform: uppercase; text-align: center; margin: 10px 0; border-bottom: 1px dashed #555; padding-bottom: 5px;}
+        
+        /* Folders/Season UI */
+        .folder-card { background: var(--surface); padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #555;}
+        .folder-card.active-folder { border-left-color: var(--warning); }
+        .game-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; margin-top: 8px; background: #263238; border-radius: 6px; cursor: pointer;}
+        .game-item.active-game { border-left: 3px solid var(--primary); }
+
+        /* Lineup Builder Tags & Analytics */
+        .analytics-toggle { display: flex; border-radius: 8px; overflow: hidden; margin-bottom: 15px; border: 1px solid #555;}
+        .analytics-tab { flex: 1; text-align: center; padding: 12px; background: #222; color: var(--text-muted); font-size: 14px; font-weight: bold; cursor: pointer;}
+        .analytics-tab.active { background: var(--purple); color: white; }
+
+        .builder-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 15px; }
+        .builder-tag { background: #333; padding: 10px; border-radius: 6px; text-align: center; font-size: 14px; cursor: pointer; border: 2px solid transparent;}
+        .builder-tag.selected { background: var(--active); border-color: white; font-weight: bold; }
+        .builder-tag.sub-out { background: var(--danger); border-color: white; font-weight: bold; text-decoration: line-through;}
+        
+        .tier-row { display: flex; align-items: center; gap: 15px; padding: 12px; border-bottom: 1px solid #333;}
+        .tier-badge { width: 30px; height: 30px; border-radius: 4px; display: flex; justify-content: center; align-items: center; font-weight: bold; color: black; font-size: 18px;}
+        .tier-S { background: var(--tier-s); box-shadow: 0 0 8px rgba(255,215,0,0.5);}
+        .tier-A { background: var(--tier-a); }
+        .tier-B { background: var(--tier-b); color: white;}
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    <div class="app-header">
+        <div class="app-title">Ultimate Pro Analytics</div>
+        <div class="settings-icon" onclick="triggerHaptic(); document.getElementById('settings-modal').style.display='block'">⚙️</div>
+    </div>
+
+    <div class="tabs">
+        <div class="tab active" onclick="switchTab('play-view')">Play</div>
+        <div class="tab" onclick="switchTab('stats-view')">Stats</div>
+        <div class="tab" onclick="switchTab('analytics-view')">Analytics</div>
+        <div class="tab" onclick="switchTab('roster-view')">Roster</div>
+        <div class="tab" onclick="switchTab('season-view')">Season</div>
+    </div>
+
+    <div id="play-view" class="view active">
+        <div id="play-content"></div>
+    </div>
+
+    <div id="stats-view" class="view">
+        <select id="leaderboard-scope" class="select-dropdown" onchange="triggerHaptic(); renderStatsView()">
+            <option value="game">Current Game Leaders</option>
+            <option value="tournament">Tournament Leaders</option>
+            <option value="season">Season Leaders</option>
+        </select>
+        <div id="stats-content"></div>
+    </div>
+    
+    <div id="analytics-view" class="view">
+        <div class="analytics-toggle">
+            <div class="analytics-tab active" id="tab-assistant" onclick="setAnalyticsMode('assistant')">Lineup Assistant</div>
+            <div class="analytics-tab" id="tab-raw" onclick="setAnalyticsMode('raw')">Raw Synergy Data</div>
+        </div>
+
+        <div id="pane-assistant">
+            <select id="assistant-mode" class="select-dropdown" onchange="triggerHaptic(); renderAnalyticsBuilder()">
+                <option value="fill">1. Find Completions (Select 2-6 Core Players)</option>
+                <option value="replace">2. Find Replacements (Select 7, then tap to Sub Out)</option>
+            </select>
+            <div class="builder-grid" id="builder-roster"></div>
+            <button class="btn btn-primary" style="background: var(--purple);" onclick="triggerHaptic(); runLineupSuggestions();">Generate Suggestions</button>
+            <div id="assistant-results" style="margin-top: 20px;"></div>
+        </div>
+
+        <div id="pane-raw" style="display:none;">
+            <p style="font-size:12px; color:var(--text-muted); margin-top:0;">Analyzes distinct sub-groups using the <b>Active Touch Filter</b> to remove redundant players who ghosted on the line.</p>
+            <select id="raw-size" class="select-dropdown">
+                <option value="2">Pairs (2 Players)</option>
+                <option value="3" selected>Trios (3 Players)</option>
+                <option value="4">Pods (4 Players)</option>
+                <option value="5">Lines (5 Players)</option>
+                <option value="6">Lines (6 Players)</option>
+                <option value="7">Full 7-Person Lines</option>
+            </select>
+            <button class="btn btn-primary" style="background: var(--purple);" onclick="triggerHaptic(); runRawSynergy();">Mine Synergy Data</button>
+            <div id="raw-results" style="margin-top: 20px;"></div>
+        </div>
+    </div>
+
+    <div id="roster-view" class="view">
+        <button class="btn btn-primary" onclick="triggerHaptic(); addPlayer();">+ Add New Player</button>
+        <h3>Team Roster (Tap for Personal Stats)</h3>
+        <div id="roster-list"></div>
+    </div>
+
+    <div id="season-view" class="view">
+        <div style="display:flex; gap:10px; margin-bottom:20px;">
+            <button class="btn btn-warning" style="flex:1; margin:0;" onclick="triggerHaptic(); startNewTournament();">+ Tournament</button>
+            <button class="btn btn-primary" style="flex:1; margin:0;" onclick="triggerHaptic(); startNewGame();">+ Game</button>
+        </div>
+        <div id="season-content"></div>
+    </div>
+
+    <div id="assign-game-modal" class="full-modal">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h2 id="assign-modal-title" style="margin:0;">Add Game to Folder</h2>
+            <button class="icon-btn" style="padding:10px 15px; font-size:16px;" onclick="triggerHaptic(); document.getElementById('assign-game-modal').style.display='none'">Close</button>
+        </div>
+        <p style="color:var(--text-muted); margin-top:-10px;">Select a game below to move it into this tournament.</p>
+        <div id="assign-game-list"></div>
+    </div>
+
+    <div id="settings-modal" class="full-modal">
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+            <h2 style="margin:0;">Settings & Data</h2>
+            <button class="icon-btn" style="padding:10px 15px; font-size:16px;" onclick="triggerHaptic(); document.getElementById('settings-modal').style.display='none'">Close</button>
+        </div>
+        
+        <button class="btn btn-secondary" onclick="triggerHaptic(); exportData();">Export Database Backup (.json)</button>
+        
+        <label class="btn btn-primary" style="font-size: 16px; font-weight: normal; background: #00796b; margin-top:20px;">
+            Import Varsity Roster (.csv)
+            <input type="file" style="display: none;" accept=".csv" onchange="importRosterCSV(event)">
+        </label>
+        <label class="btn btn-info" style="font-size: 16px; font-weight: normal;">
+            Import Old Games (.csv)
+            <input type="file" style="display: none;" accept=".csv" onchange="importCSVData(event)">
+        </label>
+        <label class="btn btn-secondary" style="font-size: 16px; font-weight: normal; margin-top:20px;">
+            Restore Backup (.json)
+            <input type="file" style="display: none;" accept=".json" onchange="importData(event)">
+        </label>
+        
+        <button class="btn btn-danger" style="margin-top: 40px;" onclick="triggerHaptic(); clearAllData();">Wipe All App Data</button>
+    </div>
+
+    <div id="tree-modal" class="full-modal">
+        <button class="btn btn-secondary" onclick="triggerHaptic(); closeTreeModal();">← Back to Stats</button>
+        <h2 id="tree-title">Play Diagram</h2>
+        <p style="font-size:12px; color:var(--text-muted); margin-top:-10px;">Tap a player to view their profile.</p>
+        <div id="tree-content" class="tree-container"></div>
+    </div>
+
+    <div id="player-modal" class="full-modal">
+        <button class="btn btn-secondary" onclick="triggerHaptic(); closePlayerModal();">← Back</button>
+        <h2 id="modal-name">Player Name</h2>
+        
+        <select id="player-scope" class="select-dropdown" onchange="triggerHaptic(); updatePlayerModalStats()">
+            </select>
+
+        <div class="stat-grid" id="modal-stats-grid"></div>
+        <h3>Favorite Passing Targets</h3>
+        <div id="modal-targets"></div>
+    </div>
+</div>
+
+<script src="app.js"></script>
+<script>
+    if ('serviceWorker' in navigator) {
+        window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js'); });
+    }
+</script>
+</body>
+</html>
