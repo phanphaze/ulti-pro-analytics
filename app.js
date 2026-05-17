@@ -17,7 +17,6 @@ if (!state.tournaments) state.tournaments = [];
 let possession = { status: 'setup', hasDisc: null, lastPasser: null, currentPointEvents: [] };
 let currentViewedPlayerId = null;
 
-// Analytics State
 let builderCore = new Set();
 let builderSubOut = new Set();
 
@@ -125,7 +124,6 @@ function deleteTournament(event, id) {
     }
 }
 
-// --- POINT MANAGEMENT ---
 function deletePoint(pointId) {
     if(!confirm("Are you sure you want to permanently delete this point?")) return;
     triggerHaptic();
@@ -261,7 +259,7 @@ function bindGestures() {
         row.addEventListener('touchend', e => {
             const touchendX = e.changedTouches[0].screenX; const touchendY = e.changedTouches[0].screenY;
             const playerId = row.getAttribute('data-id');
-            if (Math.abs(touchendY - touchstartY) > 15) return; // Ignore scrolling
+            if (Math.abs(touchendY - touchstartY) > 15) return; 
             if (touchendX < touchstartX - 50) handleSwipe(playerId, 'left');
             else if (touchendX > touchstartX + 50) handleSwipe(playerId, 'right');
             else tapPlayer(playerId);
@@ -357,7 +355,7 @@ function toggleBuilderPlayer(playerId) {
             if (builderCore.size >= 6) { alert("You can only select up to 6 core players."); return; }
             builderCore.add(playerId);
         }
-    } else { // 'replace' mode
+    } else { 
         if (builderSubOut.has(playerId)) builderSubOut.delete(playerId);
         else {
             if (!builderCore.has(playerId)) {
@@ -399,7 +397,7 @@ function runLineupSuggestions() {
 
     if (mode === 'fill') {
         if (activeCore.size === 0) { container.innerHTML = `<div style="color:var(--danger); text-align:center;">Select 2 to 6 players to find completions.</div>`; return; }
-    } else { // replace
+    } else { 
         if (activeCore.size !== 7) { container.innerHTML = `<div style="color:var(--danger); text-align:center;">Select exactly 7 players first.</div>`; return; }
         if (builderSubOut.size === 0) { container.innerHTML = `<div style="color:var(--danger); text-align:center;">Tap selected players to sub them out.</div>`; return; }
         builderSubOut.forEach(id => activeCore.delete(id));
@@ -681,7 +679,10 @@ function renderRosterView() {
         html += `
             <div class="list-row" onclick="openPlayerModal('${p.id}')">
                 <div class="info-block"><span>#${p.num} ${p.name} ${gradeTag}</span><span class="info-sub">Points Played: ${ptsPlayed}</span></div>
-                <div class="row-actions"><button class="icon-btn edit" onclick="editPlayer(event, '${p.id}')">Edit</button><button class="icon-btn delete" onclick="deletePlayer(event, '${p.id}')">Del</button></div>
+                <div class="row-actions">
+                    <button class="icon-btn edit" title="Edit Player" onclick="editPlayer(event, '${p.id}')">✏️</button>
+                    <button class="icon-btn delete" title="Delete Player" onclick="deletePlayer(event, '${p.id}')">🗑️</button>
+                </div>
             </div>`;
     });
     container.innerHTML = html;
@@ -709,8 +710,8 @@ function renderSeasonView() {
                 <div style="display:flex; justify-content:space-between; align-items:center;">
                     <div style="font-weight:bold; font-size:18px;">📁 ${t.name}</div>
                     <div class="row-actions">
-                        ${!isActive ? `<button class="icon-btn edit" onclick="state.activeTournamentId='${t.id}'; saveData(); renderSeasonView();">Set Active</button>` : ''}
-                        <button class="icon-btn delete" onclick="deleteTournament(event, '${t.id}')">Del</button>
+                        ${!isActive ? `<button class="icon-btn active-btn" title="Set Active" onclick="state.activeTournamentId='${t.id}'; saveData(); renderSeasonView();">⭐</button>` : ''}
+                        <button class="icon-btn delete" title="Delete Tournament" onclick="deleteTournament(event, '${t.id}')">🗑️</button>
                     </div>
                 </div>
                 <div style="font-size:12px; color:var(--text-muted); margin-top:5px; margin-bottom:10px;">${tGames.length} Games inside</div>
@@ -720,8 +721,6 @@ function renderSeasonView() {
             
             tGames.forEach(g => {
                 const isGActive = g.id === state.activeGameId; const scoreText = getGameScore(g).text;
-                
-                // Using flex min-width:0 to allow ellipsis text-overflow without crushing the score wrap.
                 html += `
                 <div class="game-item ${isGActive ? 'active-game' : ''}" onclick="setActiveGame('${g.id}')">
                     <div style="font-weight:bold; font-size:14px; display:flex; flex:1; min-width:0; margin-right:10px;">
@@ -729,9 +728,9 @@ function renderSeasonView() {
                         <span style="font-weight:normal; color:#aaa; margin-left:8px; white-space:nowrap;">${scoreText}</span>
                     </div>
                     <div class="row-actions">
-                        <button class="icon-btn edit" onclick="renameGame(event, '${g.id}')">Rename</button>
-                        <button class="icon-btn" onclick="removeGameFromTournament(event, '${g.id}')">Remove</button>
-                        <button class="icon-btn delete" onclick="deleteGame(event, '${g.id}')">Del</button>
+                        <button class="icon-btn edit" title="Rename Game" onclick="renameGame(event, '${g.id}')">✏️</button>
+                        <button class="icon-btn remove" title="Remove from Folder" onclick="removeGameFromTournament(event, '${g.id}')">✖️</button>
+                        <button class="icon-btn delete" title="Delete Game" onclick="deleteGame(event, '${g.id}')">🗑️</button>
                     </div>
                 </div>`;
             });
@@ -752,8 +751,8 @@ function renderSeasonView() {
                         <span style="font-weight:normal; color:#aaa; margin-left:8px; white-space:nowrap;">${scoreText}</span>
                     </div>
                     <div class="row-actions">
-                        <button class="icon-btn edit" onclick="renameGame(event, '${g.id}')">Rename</button>
-                        <button class="icon-btn delete" onclick="deleteGame(event, '${g.id}')">Del</button>
+                        <button class="icon-btn edit" title="Rename Game" onclick="renameGame(event, '${g.id}')">✏️</button>
+                        <button class="icon-btn delete" title="Delete Game" onclick="deleteGame(event, '${g.id}')">🗑️</button>
                     </div>
                 </div>
             </div>`;
@@ -833,7 +832,7 @@ function switchTab(tabId) {
     
     if (tabId === 'play-view') renderPlayView();
     if (tabId === 'stats-view') renderStatsView();
-    if (tabId === 'analytics-view') setAnalyticsMode('assistant'); // Default mode
+    if (tabId === 'analytics-view') setAnalyticsMode('assistant'); 
     if (tabId === 'roster-view') renderRosterView();
     if (tabId === 'season-view') renderSeasonView();
 }
