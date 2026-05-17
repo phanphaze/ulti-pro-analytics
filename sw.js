@@ -1,11 +1,11 @@
-// CHANGE THIS NAME EVERY TIME YOU PUSH AN UPDATE (e.g., v4, v5, v6)
-const CACHE_NAME = 'ulti-pro-v5'; 
+const CACHE_NAME = 'ulti-pro-v6'; // Bumped version!
 
 const urlsToCache = [
   './',
   './index.html',
   './app.js',
-  './manifest.json'
+  './manifest.json',
+  './logo.svg' // Added logo to offline cache
 ];
 
 // 1. Install and save the files
@@ -13,7 +13,7 @@ self.addEventListener('install', event => {
   event.waitUntil(
     caches.open(CACHE_NAME).then(cache => cache.addAll(urlsToCache))
   );
-  self.skipWaiting(); // Forces the new service worker to take over immediately
+  self.skipWaiting(); 
 });
 
 // 2. Clean up old versions when a new one takes over
@@ -23,7 +23,7 @@ self.addEventListener('activate', event => {
       return Promise.all(
         cacheNames.map(cache => {
           if (cache !== CACHE_NAME) {
-            return caches.delete(cache); // Deletes the old v3, v2, etc.
+            return caches.delete(cache); 
           }
         })
       );
