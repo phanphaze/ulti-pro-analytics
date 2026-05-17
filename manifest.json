@@ -2,7 +2,7 @@
   "name": "Ultimate Pro Analytics",
   "short_name": "UltiStats",
   "description": "Offline Ultimate Frisbee Stat Tracking",
-  "start_url": "/index.html",
+  "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#121212",
   "theme_color": "#4CAF50",
