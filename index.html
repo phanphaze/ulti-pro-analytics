@@ -6,15 +6,17 @@
     <title>Ultimate Pro Analytics</title>
     <link rel="manifest" href="manifest.json">
     <style>
-        :root { --bg: #121212; --surface: #1e1e1e; --primary: #4CAF50; --primary-dark: #388E3C; --text: #ffffff; --text-muted: #aaaaaa; --active: #2196F3; --danger: #f44336; --warning: #ff9800; --purple: #9C27B0; --info: #0288D1; --tier-s: #FFD700; --tier-a: #ff9800; --tier-b: #4CAF50;}
+        :root { --bg: #121212; --surface: #1e1e1e; --primary: #4CAF50; --primary-dark: #388E3C; --offense: #1565C0; --text: #ffffff; --text-muted: #aaaaaa; --active: #2196F3; --danger: #f44336; --warning: #ff9800; --purple: #9C27B0; --info: #0288D1; --tier-s: #FFD700; --tier-a: #ff9800; --tier-b: #4CAF50;}
+        .lucide-ic, [data-lucide] { display: inline-block; vertical-align: -0.2em; stroke: currentColor; }
         body { font-family: system-ui, -apple-system, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 0; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
         .app-container { max-width: 500px; margin: 0 auto; display: flex; flex-direction: column; height: 100vh; position: relative;}
         
         /* Header */
         .app-header { display: flex; justify-content: space-between; align-items: center; padding: 15px; background-color: var(--surface); border-bottom: 1px solid #333; z-index: 50;}
         .app-title { font-size: 18px; font-weight: bold; letter-spacing: 0.5px;}
-        .settings-icon { font-size: 22px; cursor: pointer; padding: 0 5px; transition: transform 0.2s;}
-        .settings-icon:active { transform: rotate(90deg); }
+        .settings-icon { display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 6px; border-radius: 8px; color: var(--text-muted); transition: color 0.2s, background 0.2s;}
+        .settings-icon:hover { color: var(--text); background: #333; }
+        .settings-icon:active { transform: scale(0.92); }
 
         .tabs { display: flex; background-color: var(--surface); border-bottom: 1px solid #333; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
         .tabs::-webkit-scrollbar { display: none; }
@@ -30,6 +32,30 @@
         .list-row.on-field { background-color: #263238; border: 1px solid #455A64; }
         .list-row.has-disc { background-color: var(--active); color: white; border: 2px solid white; box-shadow: 0 0 10px rgba(33,150,243,0.5); transform: scale(1.02); z-index: 2;}
         .list-row.last-passer { border: 2px dashed var(--warning); background-color: #3e2723; }
+
+        .swipe-row { touch-action: pan-y; }
+        .swipe-row.swiping-left,
+        .swipe-row.swiping-right { transition: none !important; }
+        .swipe-row.swipe-snap-back { transition: transform 0.34s cubic-bezier(0.34, 1.25, 0.64, 1), background-color 0.34s ease !important; }
+        .swipe-row.swipe-snap-back.has-disc { transform: translateX(0) scale(1.02) !important; }
+        .swipe-row .swipe-labels { position: relative; z-index: 2; display: flex; align-items: center; min-height: 28px; pointer-events: none; }
+        .swipe-row .swipe-label-name,
+        .swipe-row .swipe-label-action { font-size: 17px; font-weight: bold; line-height: 1.3; }
+        .swipe-row .swipe-label-action { position: absolute; left: 0; top: 0; opacity: 0; letter-spacing: 0.5px; text-transform: uppercase; white-space: nowrap; }
+        .swipe-row .swipe-hint { display: block; font-size: 11px; font-weight: normal; opacity: 0.85; margin-top: 4px; pointer-events: none; }
+        .swipe-row .swipe-bg { position: absolute; inset: 0; pointer-events: none; z-index: 0; border-radius: 8px; opacity: 0; transition: opacity 0.05s linear; }
+        .swipe-row .swipe-bg-left { background: linear-gradient(90deg, rgba(198,40,40,0.95) 0%, rgba(198,40,40,0.35) 55%, transparent 100%); transform-origin: left center; }
+        .swipe-row .swipe-bg-right { background: linear-gradient(270deg, rgba(56,142,60,0.95) 0%, rgba(56,142,60,0.35) 55%, transparent 100%); transform-origin: right center; }
+        .swipe-row.swiping-left .swipe-bg-left,
+        .swipe-row.swiping-right .swipe-bg-right { opacity: 1; }
+        .swipe-row.swipe-commit-left,
+        .swipe-row.swipe-commit-right { transition: background-color 0.4s ease, transform 0.4s cubic-bezier(0.2, 0.9, 0.3, 1), box-shadow 0.4s ease; }
+        .swipe-row.swipe-commit-left { background-color: #C62828 !important; border-color: #EF5350 !important; box-shadow: 0 0 18px rgba(198,40,40,0.55); transform: translateX(-28px) scale(1.02); }
+        .swipe-row.swipe-commit-right { background-color: #2E7D32 !important; border-color: #81C784 !important; box-shadow: 0 0 18px rgba(76,175,80,0.55); transform: translateX(28px) scale(1.02); }
+        .swipe-row.swipe-commit-left .swipe-label-action,
+        .swipe-row.swipe-commit-right .swipe-label-action { opacity: 1 !important; font-size: 20px; }
+        .swipe-row.swipe-commit-left .swipe-label-name,
+        .swipe-row.swipe-commit-right .swipe-label-name { opacity: 0 !important; }
         
         .info-block { display: flex; flex-direction: column; gap: 4px; font-size: 16px; font-weight: bold; pointer-events: none; }
         .info-sub { font-size: 12px; font-weight: normal; color: var(--text-muted); }
@@ -49,25 +75,39 @@
         .btn-secondary { background-color: #424242; border: 1px solid #666; } 
         .btn-info { background-color: var(--info); }
         .btn-warning { background-color: var(--warning); color: black;}
-        
+        .btn-sm { padding: 10px 10px; font-size: 13px; margin: 0; gap: 6px; }
+        .btn-start-point { gap: 8px; }
+        .btn-icon { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; min-width: 42px; padding: 0; border: 1px solid #555; border-radius: 10px; background: #2a2a2a; color: var(--text); cursor: pointer; flex-shrink: 0; }
+        .btn-icon:active { transform: scale(0.94); background: #383838; }
+
+        /* Play view chrome */
+        .play-active-chrome { margin-bottom: 14px; }
+        .play-toolbar { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 0; }
+        .play-toolbar-actions { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; min-width: 0; }
+        .play-toolbar-actions .btn { display: inline-flex; align-items: center; justify-content: center; flex-wrap: wrap; }
+        .play-cancel-sub { width: 100%; margin-top: 8px; }
+        .state-banner { text-align: center; padding: 10px 12px; font-size: 13px; font-weight: 600; line-height: 1.45; border-radius: 8px; margin: 10px 0 0 0; background: #333; clear: both; }
+        .state-banner-text { display: block; }
+        .acquire-bar { margin-top: 10px; }
+
         /* Animated O/D Slider Toggle */
-        .slider-toggle { position: relative; display: flex; width: 100%; height: 50px; background: #333; border-radius: 8px; margin-bottom: 15px; cursor: pointer; box-shadow: inset 0 2px 5px rgba(0,0,0,0.3); overflow: hidden; }
-        .slider-bg { position: absolute; top: 0; left: 0; width: 50%; height: 100%; background: var(--primary); transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), background-color 0.3s ease; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
+        .slider-toggle { position: relative; display: flex; width: 100%; height: 50px; background: #333; border-radius: 10px; margin-bottom: 12px; cursor: pointer; box-shadow: inset 0 2px 5px rgba(0,0,0,0.3); overflow: hidden; }
+        .slider-bg { position: absolute; top: 0; left: 0; width: 50%; height: 100%; background: var(--offense); transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), background-color 0.3s ease; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
         .slider-toggle.is-d .slider-bg { transform: translateX(100%); background: var(--danger); }
-        .slider-label { flex: 1; text-align: center; line-height: 50px; font-size: 16px; font-weight: bold; color: white; z-index: 1; pointer-events: none; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
+        .slider-label { flex: 1; text-align: center; line-height: 50px; font-size: 15px; font-weight: bold; color: white; z-index: 1; pointer-events: none; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
 
-        /* Icon Buttons */
-        .row-actions { display: flex; gap: 6px; z-index: 10; align-items: center;}
-        .icon-btn { background: #333; border: 1px solid #555; color: white; padding: 0; border-radius: 6px; cursor: pointer; font-size: 16px; width: 34px; height: 34px; display: flex; align-items: center; justify-content: center; transition: transform 0.1s;}
-        .icon-btn:active { transform: scale(0.9); }
-        .icon-btn.edit { background: var(--warning); color: black; border: none; }
+        .row-actions { display: flex; gap: 8px; z-index: 10;}
+        .icon-btn { display: inline-flex; align-items: center; justify-content: center; background: #333; border: 1px solid #555; color: white; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 14px; min-width: 36px; min-height: 36px;}
+        .icon-btn.edit { background: var(--warning); color: black; border: none; font-weight: bold; }
         .icon-btn.delete { background: var(--danger); border: none; }
-        .icon-btn.remove { background: #555; border: none; }
-        .icon-btn.active-btn { background: var(--primary); border: none; color: white; }
 
-        .state-banner { text-align: center; padding: 12px; font-size: 16px; font-weight: bold; border-radius: 8px; margin-bottom: 15px; background: #333;}
-        .state-o { background: #1565C0; color: white; border: 2px solid #64B5F6;}
+        .state-o { background: var(--offense); color: white; border: 1px solid #64B5F6;}
         .state-d { background: #C62828; color: white; border: 2px solid #EF5350;}
+        .state-sub { background: #4A148C; color: white; border: 2px solid #CE93D8; }
+
+        .list-row.sub-pick { outline: 2px solid var(--warning); box-shadow: 0 0 10px rgba(255,152,0,0.4); }
+        .list-row.sub-bench-row { border: 1px dashed var(--info); background: #1a2a33; }
+        .tree-node.sub-node { background: #4A148C; border-color: #CE93D8; color: white; }
 
         /* Modals */
         .full-modal { display: none; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg); overflow-y: auto; padding: 20px; box-sizing: border-box;}
@@ -76,22 +116,41 @@
         #assign-game-modal { z-index: 120; }
         #settings-modal { z-index: 200; }
 
-        .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;}
-        .stat-box { background: var(--surface); padding: 15px; border-radius: 8px; text-align: center;}
-        .stat-box .val { font-size: 24px; font-weight: bold; color: var(--primary); }
-        .stat-box .lbl { font-size: 12px; color: var(--text-muted); text-transform: uppercase;}
+        .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 20px;}
+        .stat-box { background: var(--surface); padding: 12px 8px; border-radius: 8px; text-align: center;}
+        .stat-box .val { font-size: 22px; font-weight: bold; color: var(--primary); }
+        .stat-box .lbl { font-size: 11px; color: var(--text-muted); text-transform: uppercase;}
+        .modal-role-line { font-size: 12px; color: var(--text-muted); margin: -8px 0 12px 0; }
+
+        .role-badge { display: inline-block; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; margin-left: 6px; vertical-align: middle; line-height: 1.2; }
+        .role-o { background: #1565C0; color: #fff; }
+        .role-d { background: #C62828; color: #fff; }
+        .role-n { background: #555; color: #ddd; }
+
+        .acquire-bar { display: flex; gap: 8px; margin-bottom: 12px; }
+        .acquire-btn { flex: 1; padding: 12px; border: 2px solid #555; border-radius: 8px; background: #333; color: var(--text-muted); font-size: 15px; font-weight: bold; cursor: pointer; }
+        .acquire-btn.active { border-color: white; color: white; }
+        .acquire-btn.active:first-child { background: var(--danger); }
+        .acquire-btn.active:last-child { background: var(--info); }
+
+        .block-node { background: #B71C1C; border-color: #EF5350; color: white; }
 
         /* History Card & Leaderboard */
         .history-card { background: var(--surface); padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #333; transition: transform 0.1s;}
         .stat-line { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #333; transition: background 0.1s; }
         .stat-line:last-child { border-bottom: none; }
         .stat-line.clickable:active { background-color: #333; }
+        .streak-panel { background: var(--surface); border-radius: 8px; padding: 5px; margin-bottom: 20px; }
+        .streak-line .streak-count { font-size: 22px; min-width: 32px; text-align: right; }
+        .streak-count.streak-green { color: var(--primary) !important; }
+        .streak-count.streak-orange { color: var(--warning) !important; }
+        .streak-count.streak-red { color: var(--danger) !important; }
 
         /* Passing Tree Flowchart */
         .tree-container { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 20px 0; }
         .tree-node { background: #333; border: 2px solid #555; padding: 10px 15px; border-radius: 20px; font-weight: bold; text-align: center; white-space: nowrap; cursor: pointer; transition: transform 0.1s;}
         .tree-node:active { transform: scale(0.95); }
-        .tree-arrow { color: var(--text-muted); font-size: 20px; font-weight: bold; }
+        .tree-arrow { color: var(--text-muted); display: flex; align-items: center; }
         .goal-node { background: #FFD700; color: #000; border-color: #FFB300; box-shadow: 0 0 15px rgba(255,215,0,0.4); transform: scale(1.1); margin: 0 10px; }
         .turn-node { background: #C62828; color: white; border-color: #EF5350; }
         .divider-node { width: 100%; font-size: 12px; color: var(--warning); text-transform: uppercase; text-align: center; margin: 10px 0; border-bottom: 1px dashed #555; padding-bottom: 5px;}
@@ -124,7 +183,7 @@
 <div class="app-container">
     <div class="app-header">
         <div class="app-title">Ultimate Pro Analytics</div>
-        <div class="settings-icon" onclick="triggerHaptic(); document.getElementById('settings-modal').style.display='block'">⚙️</div>
+        <div class="settings-icon" onclick="triggerHaptic(); document.getElementById('settings-modal').style.display='block'" title="Settings" aria-label="Settings"><i data-lucide="settings" style="width:22px;height:22px"></i></div>
     </div>
 
     <div class="tabs">
@@ -180,15 +239,15 @@
     </div>
 
     <div id="roster-view" class="view">
-        <button class="btn btn-primary" onclick="triggerHaptic(); addPlayer();">+ Add New Player</button>
+        <button class="btn btn-primary" onclick="triggerHaptic(); addPlayer();" style="gap:8px;"><i data-lucide="user-plus" style="width:18px;height:18px"></i> Add New Player</button>
         <h3>Team Roster (Tap for Personal Stats)</h3>
         <div id="roster-list"></div>
     </div>
 
     <div id="season-view" class="view">
         <div style="display:flex; gap:10px; margin-bottom:20px;">
-            <button class="btn btn-warning" style="flex:1; margin:0;" onclick="triggerHaptic(); startNewTournament();">+ Tournament</button>
-            <button class="btn btn-primary" style="flex:1; margin:0;" onclick="triggerHaptic(); startNewGame();">+ Game</button>
+            <button class="btn btn-warning" style="flex:1; margin:0; gap:6px;" onclick="triggerHaptic(); startNewTournament();"><i data-lucide="trophy" style="width:18px;height:18px"></i> Tournament</button>
+            <button class="btn btn-primary" style="flex:1; margin:0; gap:6px;" onclick="triggerHaptic(); startNewGame();"><i data-lucide="plus" style="width:18px;height:18px"></i> Game</button>
         </div>
         <div id="season-content"></div>
     </div>
@@ -196,7 +255,7 @@
     <div id="assign-game-modal" class="full-modal">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
             <h2 id="assign-modal-title" style="margin:0;">Add Game to Folder</h2>
-            <button class="icon-btn" style="padding:10px 15px; width:auto; font-size:16px;" onclick="triggerHaptic(); document.getElementById('assign-game-modal').style.display='none'">Close</button>
+            <button class="icon-btn" style="padding:10px 15px; font-size:16px;" onclick="triggerHaptic(); document.getElementById('assign-game-modal').style.display='none'">Close</button>
         </div>
         <p style="color:var(--text-muted); margin-top:-10px;">Select a game below to move it into this tournament.</p>
         <div id="assign-game-list"></div>
@@ -205,7 +264,7 @@
     <div id="settings-modal" class="full-modal">
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
             <h2 style="margin:0;">Settings & Data</h2>
-            <button class="icon-btn" style="padding:10px 15px; width:auto; font-size:16px;" onclick="triggerHaptic(); document.getElementById('settings-modal').style.display='none'">Close</button>
+            <button class="icon-btn" style="padding:10px 15px; font-size:16px;" onclick="triggerHaptic(); document.getElementById('settings-modal').style.display='none'">Close</button>
         </div>
         
         <button class="btn btn-secondary" onclick="triggerHaptic(); exportData();">Export Database Backup (.json)</button>
@@ -227,27 +286,30 @@
     </div>
 
     <div id="tree-modal" class="full-modal">
-        <button class="btn btn-secondary" onclick="triggerHaptic(); closeTreeModal();">← Back to Stats</button>
+        <button class="btn btn-secondary" onclick="triggerHaptic(); closeTreeModal();" style="gap:8px;"><i data-lucide="arrow-left" style="width:18px;height:18px"></i> Back to Stats</button>
         <h2 id="tree-title">Play Diagram</h2>
         <p style="font-size:12px; color:var(--text-muted); margin-top:-10px;">Tap a player to view their profile.</p>
         <div id="tree-content" class="tree-container"></div>
     </div>
 
     <div id="player-modal" class="full-modal">
-        <button class="btn btn-secondary" onclick="triggerHaptic(); closePlayerModal();">← Back</button>
+        <button class="btn btn-secondary" onclick="triggerHaptic(); closePlayerModal();" style="gap:8px;"><i data-lucide="arrow-left" style="width:18px;height:18px"></i> Back</button>
         <h2 id="modal-name">Player Name</h2>
         
         <select id="player-scope" class="select-dropdown" onchange="triggerHaptic(); updatePlayerModalStats()">
             </select>
 
+        <div id="modal-role-line" class="modal-role-line"></div>
         <div class="stat-grid" id="modal-stats-grid"></div>
         <h3>Favorite Passing Targets</h3>
         <div id="modal-targets"></div>
     </div>
 </div>
 
+<script src="https://unpkg.com/lucide@0.469.0/dist/umd/lucide.min.js"></script>
 <script src="app.js"></script>
 <script>
+    if (typeof lucide !== 'undefined') lucide.createIcons({ attrs: { 'stroke-width': 2 } });
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js'); });
     }
