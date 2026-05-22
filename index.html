@@ -6,19 +6,36 @@
     <title>Ultimate Pro Analytics</title>
     <link rel="manifest" href="manifest.json">
     <style>
-        :root { --bg: #121212; --surface: #1e1e1e; --primary: #4CAF50; --primary-dark: #388E3C; --offense: #1565C0; --text: #ffffff; --text-muted: #aaaaaa; --active: #2196F3; --danger: #f44336; --warning: #ff9800; --purple: #9C27B0; --info: #0288D1; --tier-s: #FFD700; --tier-a: #ff9800; --tier-b: #4CAF50;}
+        :root, [data-theme="dark"] {
+            --bg: #121212; --surface: #1e1e1e; --primary: #4CAF50; --primary-dark: #388E3C; --offense: #1565C0;
+            --text: #ffffff; --text-muted: #aaaaaa; --active: #2196F3; --danger: #f44336; --warning: #ff9800;
+            --purple: #9C27B0; --info: #0288D1; --tier-s: #FFD700; --tier-a: #ff9800; --tier-b: #4CAF50;
+            --border: #333; --border-strong: #555; --elevated: #2a2a2a; --input-bg: #333; --muted-bg: #333;
+            --on-field-bg: #263238; --on-field-border: #455A64; --game-item-bg: #263238; --last-passer-bg: #3e2723;
+            --sub-bench-bg: #1a2a33; --tree-node-bg: #333; --slider-track: #333; --header-hover: #333;
+            --stat-line-hover: #333; --btn-muted-bg: #424242; --btn-icon-bg: #2a2a2a; --pass-timer-btn-bg: rgba(0,0,0,0.25);
+            --shadow-soft: rgba(0,0,0,0.35);
+        }
+        [data-theme="light"] {
+            --bg: #f0f2f5; --surface: #ffffff; --text: #1a1d21; --text-muted: #5f6b7a;
+            --border: #e2e5ea; --border-strong: #c5cad3; --elevated: #eef0f4; --input-bg: #f5f6f8; --muted-bg: #eef0f4;
+            --on-field-bg: #e8eef3; --on-field-border: #b0bec5; --game-item-bg: #e8eef3; --last-passer-bg: #fff3e0;
+            --sub-bench-bg: #e3f2fd; --tree-node-bg: #f5f6f8; --slider-track: #e2e5ea; --header-hover: #e8ecf0;
+            --stat-line-hover: #eef0f4; --btn-muted-bg: #e2e5ea; --btn-icon-bg: #eef0f4; --pass-timer-btn-bg: rgba(0,0,0,0.06);
+            --shadow-soft: rgba(0,0,0,0.08);
+        }
         .lucide-ic, [data-lucide] { display: inline-block; vertical-align: -0.2em; stroke: currentColor; }
-        body { font-family: system-ui, -apple-system, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 0; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+        body { font-family: system-ui, -apple-system, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 0; user-select: none; -webkit-user-select: none; touch-action: manipulation; transition: background-color 0.2s, color 0.2s; }
         .app-container { max-width: 500px; margin: 0 auto; display: flex; flex-direction: column; height: 100vh; position: relative;}
         
         /* Header */
-        .app-header { display: flex; justify-content: space-between; align-items: center; padding: 15px; background-color: var(--surface); border-bottom: 1px solid #333; z-index: 50;}
+        .app-header { display: flex; justify-content: space-between; align-items: center; padding: 15px; background-color: var(--surface); border-bottom: 1px solid var(--border); z-index: 50;}
         .app-title { font-size: 18px; font-weight: bold; letter-spacing: 0.5px;}
         .settings-icon { display: flex; align-items: center; justify-content: center; cursor: pointer; padding: 6px; border-radius: 8px; color: var(--text-muted); transition: color 0.2s, background 0.2s;}
-        .settings-icon:hover { color: var(--text); background: #333; }
+        .settings-icon:hover { color: var(--text); background: var(--header-hover); }
         .settings-icon:active { transform: scale(0.92); }
 
-        .tabs { display: flex; background-color: var(--surface); border-bottom: 1px solid #333; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
+        .tabs { display: flex; background-color: var(--surface); border-bottom: 1px solid var(--border); overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
         .tabs::-webkit-scrollbar { display: none; }
         .tab { flex: 1; min-width: 58px; padding: 12px 6px; text-align: center; font-size: 13px; font-weight: bold; color: var(--text-muted); cursor: pointer; transition: 0.2s;}
         .tab.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
@@ -29,12 +46,12 @@
         /* Interactive Rows */
         .list-row { display: flex; justify-content: space-between; align-items: center; background-color: var(--surface); padding: 15px; margin-bottom: 8px; border-radius: 8px; cursor: pointer; transition: transform 0.1s, background 0.2s; position: relative; overflow: hidden;}
         .list-row:active { transform: scale(0.98); } 
-        .list-row.on-field { background-color: #263238; border: 1px solid #455A64; }
+        .list-row.on-field { background-color: var(--on-field-bg); border: 1px solid var(--on-field-border); }
         .list-row.has-disc:not(.swipe-row) { background-color: var(--active); color: white; border: 2px solid white; box-shadow: 0 0 10px rgba(33,150,243,0.5); transform: scale(1.02); z-index: 2;}
-        .list-row.last-passer { border: 2px dashed var(--warning); background-color: #3e2723; }
+        .list-row.last-passer { border: 2px dashed var(--warning); background-color: var(--last-passer-bg); }
 
         .swipe-row { touch-action: pan-y; justify-content: space-between; gap: 6px; padding: 14px 10px; z-index: 2; }
-        .swipe-row.has-disc { border: 2px solid rgba(255,255,255,0.35); box-shadow: 0 0 10px rgba(0,0,0,0.35); }
+        .swipe-row.has-disc { border: 2px solid rgba(255,255,255,0.35); box-shadow: 0 0 10px var(--shadow-soft); }
         .swipe-row.swiping-left,
         .swipe-row.swiping-right { transition: none !important; }
         .swipe-row.swipe-snap-back { transition: background-color 0.34s ease !important; }
@@ -68,25 +85,25 @@
         .info-block { display: flex; flex-direction: column; gap: 4px; font-size: 16px; font-weight: bold; pointer-events: none; }
         .info-sub { font-size: 12px; font-weight: normal; color: var(--text-muted); }
         
-        h3 { margin-top: 20px; margin-bottom: 10px; color: var(--text-muted); font-size: 14px; text-transform: uppercase; border-bottom: 1px solid #333; padding-bottom: 5px;}
+        h3 { margin-top: 20px; margin-bottom: 10px; color: var(--text-muted); font-size: 14px; text-transform: uppercase; border-bottom: 1px solid var(--border); padding-bottom: 5px;}
         
         /* Dropdowns */
-        .select-dropdown { width: 100%; padding: 12px; background: #333; color: white; border: 1px solid #555; border-radius: 8px; font-size: 16px; margin-bottom: 15px; font-weight: bold; outline: none;}
-        .select-dropdown optgroup { font-style: normal; font-weight: bold; color: var(--primary); background: #222;}
-        .select-dropdown option { font-weight: normal; color: white; background: #333;}
+        .select-dropdown { width: 100%; padding: 12px; background: var(--input-bg); color: var(--text); border: 1px solid var(--border-strong); border-radius: 8px; font-size: 16px; margin-bottom: 15px; font-weight: bold; outline: none;}
+        .select-dropdown optgroup { font-style: normal; font-weight: bold; color: var(--primary); background: var(--surface);}
+        .select-dropdown option { font-weight: normal; color: var(--text); background: var(--surface);}
 
         /* Buttons */
         .btn { display: flex; justify-content: center; align-items: center; width: 100%; box-sizing: border-box; padding: 16px; border: none; border-radius: 8px; font-size: 18px; font-weight: bold; color: white; margin-bottom: 10px; cursor: pointer; text-align: center; transition: transform 0.1s;}
         .btn:active { transform: scale(0.96); }
         .btn-primary { background-color: var(--primary); }
         .btn-danger { background-color: var(--danger); }
-        .btn-secondary { background-color: #424242; border: 1px solid #666; } 
+        .btn-secondary { background-color: var(--btn-muted-bg); border: 1px solid var(--border-strong); color: var(--text); } 
         .btn-info { background-color: var(--info); }
         .btn-warning { background-color: var(--warning); color: black;}
         .btn-sm { padding: 10px 10px; font-size: 13px; margin: 0; gap: 6px; }
         .btn-start-point { gap: 8px; }
-        .btn-icon { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; min-width: 42px; padding: 0; border: 1px solid #555; border-radius: 10px; background: #2a2a2a; color: var(--text); cursor: pointer; flex-shrink: 0; }
-        .btn-icon:active { transform: scale(0.94); background: #383838; }
+        .btn-icon { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; min-width: 42px; padding: 0; border: 1px solid var(--border-strong); border-radius: 10px; background: var(--btn-icon-bg); color: var(--text); cursor: pointer; flex-shrink: 0; }
+        .btn-icon:active { transform: scale(0.94); opacity: 0.85; }
         .btn-icon.btn-undo { background: var(--warning); color: #1a1a1a; border-color: #e68900; }
         .btn-icon.btn-undo:active { background: #ffb74d; }
 
@@ -98,34 +115,34 @@
         .play-toolbar .btn-icon.btn-undo { width: 40px; min-width: 40px; height: auto; min-height: 40px; margin: 0; align-self: stretch; }
         .pass-timer-bar { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.15); }
         .pass-timer-display { font-size: 18px; font-weight: bold; font-variant-numeric: tabular-nums; min-width: 48px; }
-        .pass-timer-btn { display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.35); background: rgba(0,0,0,0.25); color: white; font-size: 12px; font-weight: bold; cursor: pointer; }
+        .pass-timer-btn { display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 6px 12px; border-radius: 6px; border: 1px solid var(--border-strong); background: var(--pass-timer-btn-bg); color: var(--text); font-size: 12px; font-weight: bold; cursor: pointer; }
         .pass-timer-btn.paused { background: var(--warning); color: #1a1a1a; border-color: #e68900; }
         .tree-pass-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; }
         .tree-pass-time { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-muted); }
-        .tree-pass-time input { width: 52px; padding: 6px 8px; border-radius: 6px; border: 1px solid #555; background: #222; color: white; font-size: 14px; font-weight: bold; text-align: center; }
+        .tree-pass-time input { width: 52px; padding: 6px 8px; border-radius: 6px; border: 1px solid var(--border-strong); background: var(--input-bg); color: var(--text); font-size: 14px; font-weight: bold; text-align: center; }
         .play-cancel-sub { width: 100%; margin-top: 8px; }
-        .state-banner { text-align: center; padding: 10px 12px; font-size: 13px; font-weight: 600; line-height: 1.45; border-radius: 8px; margin: 10px 0 0 0; background: #333; clear: both; }
+        .state-banner { text-align: center; padding: 10px 12px; font-size: 13px; font-weight: 600; line-height: 1.45; border-radius: 8px; margin: 10px 0 0 0; background: var(--muted-bg); clear: both; }
         .state-banner-text { display: block; }
         .acquire-bar { margin-top: 10px; }
 
         /* Animated O/D Slider Toggle */
-        .slider-toggle { position: relative; display: flex; width: 100%; height: 50px; background: #333; border-radius: 10px; margin-bottom: 12px; cursor: pointer; box-shadow: inset 0 2px 5px rgba(0,0,0,0.3); overflow: hidden; }
+        .slider-toggle { position: relative; display: flex; width: 100%; height: 50px; background: var(--slider-track); border-radius: 10px; margin-bottom: 12px; cursor: pointer; box-shadow: inset 0 2px 5px var(--shadow-soft); overflow: hidden; }
         .slider-bg { position: absolute; top: 0; left: 0; width: 50%; height: 100%; background: var(--offense); transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1), background-color 0.3s ease; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
         .slider-toggle.is-d .slider-bg { transform: translateX(100%); background: var(--danger); }
         .slider-label { flex: 1; text-align: center; line-height: 50px; font-size: 15px; font-weight: bold; color: white; z-index: 1; pointer-events: none; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
 
         .row-actions { display: flex; gap: 8px; z-index: 10;}
-        .icon-btn { display: inline-flex; align-items: center; justify-content: center; background: #333; border: 1px solid #555; color: white; padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 14px; min-width: 36px; min-height: 36px;}
+        .icon-btn { display: inline-flex; align-items: center; justify-content: center; background: var(--elevated); border: 1px solid var(--border-strong); color: var(--text); padding: 8px 10px; border-radius: 6px; cursor: pointer; font-size: 14px; min-width: 36px; min-height: 36px;}
         .icon-btn.edit { background: var(--warning); color: black; border: none; font-weight: bold; }
         .icon-btn.delete { background: var(--danger); border: none; }
 
         .state-we-disc { background: var(--active); color: white; border: 1px solid #64B5F6; box-shadow: 0 0 8px rgba(33,150,243,0.35); }
         .state-they-disc { background: #C62828; color: white; border: 2px solid #EF5350; }
-        .state-neutral { background: #333; color: white; border: 1px solid #555; }
+        .state-neutral { background: var(--muted-bg); color: var(--text); border: 1px solid var(--border-strong); }
         .state-sub { background: #4A148C; color: white; border: 2px solid #CE93D8; }
 
         .list-row.sub-pick { outline: 2px solid var(--warning); box-shadow: 0 0 10px rgba(255,152,0,0.4); }
-        .list-row.sub-bench-row { border: 1px dashed var(--info); background: #1a2a33; }
+        .list-row.sub-bench-row { border: 1px dashed var(--info); background: var(--sub-bench-bg); }
         .tree-node.sub-node { background: #4A148C; border-color: #CE93D8; color: white; }
 
         /* Modals */
@@ -147,7 +164,7 @@
         .role-n { background: #555; color: #ddd; }
 
         .acquire-bar { display: flex; gap: 8px; margin-bottom: 12px; }
-        .acquire-btn { flex: 1; padding: 12px; border: 2px solid #555; border-radius: 8px; background: #333; color: var(--text-muted); font-size: 15px; font-weight: bold; cursor: pointer; }
+        .acquire-btn { flex: 1; padding: 12px; border: 2px solid var(--border-strong); border-radius: 8px; background: var(--muted-bg); color: var(--text-muted); font-size: 15px; font-weight: bold; cursor: pointer; }
         .acquire-btn.active { border-color: white; color: white; }
         .acquire-btn.active:first-child { background: var(--danger); }
         .acquire-btn.active:last-child { background: var(--info); }
@@ -155,10 +172,10 @@
         .block-node { background: #B71C1C; border-color: #EF5350; color: white; }
 
         /* History Card & Leaderboard */
-        .history-card { background: var(--surface); padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #333; transition: transform 0.1s;}
-        .stat-line { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid #333; transition: background 0.1s; }
+        .history-card { background: var(--surface); padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid var(--border-strong); transition: transform 0.1s;}
+        .stat-line { display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--border); transition: background 0.1s; }
         .stat-line:last-child { border-bottom: none; }
-        .stat-line.clickable:active { background-color: #333; }
+        .stat-line.clickable:active { background-color: var(--stat-line-hover); }
         .streak-panel { background: var(--surface); border-radius: 8px; padding: 5px; margin-bottom: 20px; }
         .streak-line .streak-count { font-size: 22px; min-width: 32px; text-align: right; }
         .streak-count.streak-green { color: var(--primary) !important; }
@@ -167,30 +184,64 @@
 
         /* Passing Tree Flowchart */
         .tree-container { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 20px 0; }
-        .tree-node { background: #333; border: 2px solid #555; padding: 10px 15px; border-radius: 20px; font-weight: bold; text-align: center; white-space: nowrap; cursor: pointer; transition: transform 0.1s;}
+        .tree-node { background: var(--tree-node-bg); border: 2px solid var(--border-strong); padding: 10px 15px; border-radius: 20px; font-weight: bold; text-align: center; white-space: nowrap; cursor: pointer; transition: transform 0.1s; color: var(--text);}
         .tree-node:active { transform: scale(0.95); }
         .tree-arrow { color: var(--text-muted); display: flex; align-items: center; }
         .goal-node { background: #FFD700; color: #000; border-color: #FFB300; box-shadow: 0 0 15px rgba(255,215,0,0.4); transform: scale(1.1); margin: 0 10px; }
         .turn-node { background: #C62828; color: white; border-color: #EF5350; }
-        .divider-node { width: 100%; font-size: 12px; color: var(--warning); text-transform: uppercase; text-align: center; margin: 10px 0; border-bottom: 1px dashed #555; padding-bottom: 5px;}
+        .divider-node { width: 100%; font-size: 12px; color: var(--warning); text-transform: uppercase; text-align: center; margin: 10px 0; border-bottom: 1px dashed var(--border-strong); padding-bottom: 5px;}
         
         /* Folders/Season UI */
         .folder-card { background: var(--surface); padding: 15px; border-radius: 8px; margin-bottom: 15px; border-left: 4px solid #555;}
         .folder-card.active-folder { border-left-color: var(--warning); }
-        .game-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; margin-top: 8px; background: #263238; border-radius: 6px; cursor: pointer;}
+        .game-item { display: flex; justify-content: space-between; align-items: center; padding: 12px; margin-top: 8px; background: var(--game-item-bg); border-radius: 6px; cursor: pointer;}
         .game-item.active-game { border-left: 3px solid var(--primary); }
 
         /* Lineup Builder Tags & Analytics */
-        .analytics-toggle { display: flex; border-radius: 8px; overflow: hidden; margin-bottom: 15px; border: 1px solid #555;}
-        .analytics-tab { flex: 1; text-align: center; padding: 12px; background: #222; color: var(--text-muted); font-size: 14px; font-weight: bold; cursor: pointer;}
+        .analytics-toggle { display: flex; border-radius: 8px; overflow: hidden; margin-bottom: 15px; border: 1px solid var(--border-strong);}
+        .analytics-tab { flex: 1; text-align: center; padding: 12px; background: var(--elevated); color: var(--text-muted); font-size: 14px; font-weight: bold; cursor: pointer;}
         .analytics-tab.active { background: var(--purple); color: white; }
 
         .builder-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 15px; }
-        .builder-tag { background: #333; padding: 10px; border-radius: 6px; text-align: center; font-size: 14px; cursor: pointer; border: 2px solid transparent;}
+        .builder-tag { background: var(--muted-bg); padding: 10px; border-radius: 6px; text-align: center; font-size: 14px; cursor: pointer; border: 2px solid transparent; color: var(--text);}
         .builder-tag.selected { background: var(--active); border-color: white; font-weight: bold; }
         .builder-tag.sub-out { background: var(--danger); border-color: white; font-weight: bold; text-decoration: line-through;}
         
-        .tier-row { display: flex; align-items: center; gap: 15px; padding: 12px; border-bottom: 1px solid #333;}
+        .tier-row { display: flex; align-items: center; gap: 15px; padding: 12px; border-bottom: 1px solid var(--border);}
+
+        /* Settings */
+        .settings-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+        .settings-header h2 { margin: 0; font-size: 22px; }
+        .settings-subtitle { font-size: 13px; color: var(--text-muted); margin: 0 0 20px 0; line-height: 1.4; }
+        .settings-section { margin-bottom: 22px; }
+        .settings-section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; color: var(--text-muted); margin: 0 0 10px 4px; }
+        .settings-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+        .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 14px 16px; border-bottom: 1px solid var(--border); }
+        .settings-row:last-child { border-bottom: none; }
+        .settings-row-text { flex: 1; min-width: 0; }
+        .settings-row-title { font-size: 15px; font-weight: 600; line-height: 1.3; }
+        .settings-row-desc { font-size: 12px; color: var(--text-muted); margin-top: 3px; line-height: 1.35; }
+        .settings-toggle { position: relative; width: 48px; height: 28px; flex-shrink: 0; }
+        .settings-toggle input { opacity: 0; width: 0; height: 0; }
+        .settings-toggle-slider { position: absolute; inset: 0; background: var(--border-strong); border-radius: 28px; cursor: pointer; transition: background 0.2s; }
+        .settings-toggle-slider::before { content: ''; position: absolute; width: 22px; height: 22px; left: 3px; top: 3px; background: white; border-radius: 50%; transition: transform 0.2s; box-shadow: 0 1px 3px var(--shadow-soft); }
+        .settings-toggle input:checked + .settings-toggle-slider { background: var(--primary); }
+        .settings-toggle input:checked + .settings-toggle-slider::before { transform: translateX(20px); }
+        .theme-segment { display: flex; gap: 6px; background: var(--elevated); border-radius: 10px; padding: 4px; width: 100%; box-sizing: border-box; }
+        .theme-segment-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 8px; border: none; border-radius: 8px; background: transparent; color: var(--text-muted); font-size: 13px; font-weight: 600; cursor: pointer; transition: background 0.15s, color 0.15s; }
+        .theme-segment-btn.active { background: var(--surface); color: var(--text); box-shadow: 0 1px 4px var(--shadow-soft); }
+        .settings-select { padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border-strong); background: var(--input-bg); color: var(--text); font-size: 14px; font-weight: 600; min-width: 110px; }
+        .settings-action-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; box-sizing: border-box; padding: 14px 16px; margin: 0 0 8px 0; border: none; border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer; text-align: center; position: relative; }
+        label.settings-action-btn { display: flex; }
+        .settings-action-btn:last-child { margin-bottom: 0; }
+        .settings-action-btn.btn-export { background: var(--btn-muted-bg); color: var(--text); border: 1px solid var(--border-strong); }
+        .settings-action-btn.btn-import-roster { background: #00796b; color: white; }
+        .settings-action-btn.btn-import-games { background: var(--info); color: white; }
+        .settings-action-btn.btn-import-backup { background: var(--elevated); color: var(--text); border: 1px solid var(--border-strong); }
+        .settings-danger-zone { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--border); }
+        .settings-danger-zone .settings-section-title { color: var(--danger); }
+        .settings-wipe-btn { width: 100%; padding: 14px; border: none; border-radius: 10px; background: var(--danger); color: white; font-size: 15px; font-weight: 700; cursor: pointer; }
+        .settings-file-input { display: none; }
         .tier-badge { width: 30px; height: 30px; border-radius: 4px; display: flex; justify-content: center; align-items: center; font-weight: bold; color: black; font-size: 18px;}
         .tier-S { background: var(--tier-s); box-shadow: 0 0 8px rgba(255,215,0,0.5);}
         .tier-A { background: var(--tier-a); }
@@ -202,7 +253,7 @@
 <div class="app-container">
     <div class="app-header">
         <div class="app-title">Ultimate Pro Analytics</div>
-        <div class="settings-icon" onclick="triggerHaptic(); document.getElementById('settings-modal').style.display='block'" title="Settings" aria-label="Settings"><i data-lucide="settings" style="width:22px;height:22px"></i></div>
+        <div class="settings-icon" onclick="openSettingsModal()" title="Settings" aria-label="Settings"><i data-lucide="settings" style="width:22px;height:22px"></i></div>
     </div>
 
     <div class="tabs">
@@ -286,27 +337,102 @@
     </div>
 
     <div id="settings-modal" class="full-modal">
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <h2 style="margin:0;">Settings & Data</h2>
-            <button class="icon-btn" style="padding:10px 15px; font-size:16px;" onclick="triggerHaptic(); document.getElementById('settings-modal').style.display='none'">Close</button>
+        <div class="settings-header">
+            <h2>Settings</h2>
+            <button class="icon-btn" style="padding:10px 14px;" onclick="closeSettingsModal()" aria-label="Close"><i data-lucide="x" style="width:18px;height:18px"></i></button>
         </div>
-        
-        <button class="btn btn-secondary" onclick="triggerHaptic(); exportData();">Export Database Backup (.json)</button>
-        
-        <label class="btn btn-primary" style="font-size: 16px; font-weight: normal; background: #00796b; margin-top:20px;">
-            Import Varsity Roster (.csv)
-            <input type="file" style="display: none;" accept=".csv" onchange="importRosterCSV(event)">
-        </label>
-        <label class="btn btn-info" style="font-size: 16px; font-weight: normal;">
-            Import Old Games (.csv)
-            <input type="file" style="display: none;" accept=".csv" onchange="importCSVData(event)">
-        </label>
-        <label class="btn btn-secondary" style="font-size: 16px; font-weight: normal; margin-top:20px;">
-            Restore Backup (.json)
-            <input type="file" style="display: none;" accept=".json" onchange="importData(event)">
-        </label>
-        
-        <button class="btn btn-danger" style="margin-top: 40px;" onclick="triggerHaptic(); clearAllData();">Wipe All App Data</button>
+        <p class="settings-subtitle">Customize how the app looks, feels, and behaves during games.</p>
+
+        <div class="settings-section">
+            <p class="settings-section-title">Appearance</p>
+            <div class="settings-card" style="padding: 12px 14px;">
+                <div class="settings-row" style="border:none; padding: 0; flex-direction: column; align-items: stretch;">
+                    <div class="settings-row-text" style="margin-bottom: 10px;">
+                        <div class="settings-row-title">Color theme</div>
+                        <div class="settings-row-desc">Switch between dark and light mode.</div>
+                    </div>
+                    <div class="theme-segment">
+                        <button type="button" class="theme-segment-btn" data-theme-choice="dark" onclick="setTheme('dark')"><i data-lucide="moon" style="width:16px;height:16px"></i><span>Dark</span></button>
+                        <button type="button" class="theme-segment-btn" data-theme-choice="light" onclick="setTheme('light')"><i data-lucide="sun" style="width:16px;height:16px"></i><span>Light</span></button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <p class="settings-section-title">Feedback &amp; Display</p>
+            <div class="settings-card">
+                <div class="settings-row">
+                    <div class="settings-row-text">
+                        <div class="settings-row-title">Haptic feedback</div>
+                        <div class="settings-row-desc">Short vibration on taps and actions.</div>
+                    </div>
+                    <label class="settings-toggle">
+                        <input type="checkbox" id="setting-haptics" onchange="setSetting('haptics', this.checked)">
+                        <span class="settings-toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-text">
+                        <div class="settings-row-title">Keep screen awake</div>
+                        <div class="settings-row-desc">Prevent sleep while a point is in progress.</div>
+                    </div>
+                    <label class="settings-toggle">
+                        <input type="checkbox" id="setting-keep-awake" onchange="setSetting('keepAwake', this.checked)">
+                        <span class="settings-toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <p class="settings-section-title">Gameplay</p>
+            <div class="settings-card">
+                <div class="settings-row">
+                    <div class="settings-row-text">
+                        <div class="settings-row-title">Default turnover tap</div>
+                        <div class="settings-row-desc">When they have the disc, which button is selected first.</div>
+                    </div>
+                    <select id="setting-acquire-mode" class="settings-select" onchange="setSetting('defaultAcquireMode', this.value)">
+                        <option value="block">Block</option>
+                        <option value="pickup">Pickup</option>
+                    </select>
+                </div>
+                <div class="settings-row">
+                    <div class="settings-row-text">
+                        <div class="settings-row-title">Confirm destructive actions</div>
+                        <div class="settings-row-desc">Ask before deleting points, games, or players.</div>
+                    </div>
+                    <label class="settings-toggle">
+                        <input type="checkbox" id="setting-confirm" onchange="setSetting('confirmDestructive', this.checked)">
+                        <span class="settings-toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <p class="settings-section-title">Backup &amp; Import</p>
+            <button type="button" class="settings-action-btn btn-export" onclick="exportData()"><i data-lucide="download" style="width:18px;height:18px"></i> Export full backup (.json)</button>
+            <label class="settings-action-btn btn-import-roster">
+                Import varsity roster (.csv)
+                <input type="file" class="settings-file-input" accept=".csv" onchange="importRosterCSV(event)">
+            </label>
+            <label class="settings-action-btn btn-import-games">
+                Import legacy games (.csv)
+                <input type="file" class="settings-file-input" accept=".csv" onchange="importCSVData(event)">
+            </label>
+            <label class="settings-action-btn btn-import-backup">
+                Restore from backup (.json)
+                <input type="file" class="settings-file-input" accept=".json" onchange="importData(event)">
+            </label>
+        </div>
+
+        <div class="settings-danger-zone">
+            <p class="settings-section-title">Danger zone</p>
+            <button type="button" class="settings-wipe-btn" onclick="clearAllData()">Erase all app data</button>
+            <p class="settings-row-desc" style="margin-top:10px; text-align:center;">Cannot be undone. Export a backup first.</p>
+        </div>
     </div>
 
     <div id="tree-modal" class="full-modal">

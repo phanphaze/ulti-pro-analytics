@@ -1,8 +1,95 @@
 // --- 1. INITIALIZATION & STATE ---
 const generateId = () => Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
 
+const DEFAULT_SETTINGS = {
+    haptics: true,
+    theme: 'dark',
+    confirmDestructive: true,
+    keepAwake: false,
+    defaultAcquireMode: 'block'
+};
+
+let wakeLock = null;
+
 function triggerHaptic() {
+    if (!state.settings?.haptics) return;
     if (navigator.vibrate) navigator.vibrate(50);
+}
+
+function normalizeSettings() {
+    state.settings = { ...DEFAULT_SETTINGS, ...(state.settings || {}) };
+}
+
+function applyAppSettings() {
+    document.documentElement.setAttribute('data-theme', state.settings.theme === 'light' ? 'light' : 'dark');
+    updateWakeLock();
+}
+
+function confirmAction(message) {
+    if (!state.settings.confirmDestructive) return true;
+    return confirm(message);
+}
+
+async function updateWakeLock() {
+    const shouldLock = state.settings.keepAwake && possession.status === 'playing';
+    if (!shouldLock) {
+        if (wakeLock) {
+            try { await wakeLock.release(); } catch (e) { /* ignore */ }
+            wakeLock = null;
+        }
+        return;
+    }
+    if (!('wakeLock' in navigator) || wakeLock) return;
+    try {
+        wakeLock = await navigator.wakeLock.request('screen');
+        wakeLock.addEventListener('release', () => { wakeLock = null; });
+    } catch (e) { /* unsupported or denied */ }
+}
+
+function openSettingsModal() {
+    triggerHaptic();
+    document.getElementById('settings-modal').style.display = 'block';
+    syncSettingsUI();
+    refreshIcons(document.getElementById('settings-modal'));
+}
+
+function closeSettingsModal() {
+    triggerHaptic();
+    document.getElementById('settings-modal').style.display = 'none';
+}
+
+function setSetting(key, value) {
+    state.settings[key] = value;
+    saveData();
+    applyAppSettings();
+    syncSettingsUI();
+    if (key === 'defaultAcquireMode' && possession.opponentHasDisc && !possession.hasDisc) {
+        possession.acquireMode = value;
+        if (document.getElementById('play-view').classList.contains('active')) renderPlayView();
+    }
+}
+
+function toggleSetting(key) {
+    setSetting(key, !state.settings[key]);
+}
+
+function setTheme(theme) {
+    setSetting('theme', theme === 'light' ? 'light' : 'dark');
+}
+
+function syncSettingsUI() {
+    const s = state.settings;
+    const hapticEl = document.getElementById('setting-haptics');
+    const confirmEl = document.getElementById('setting-confirm');
+    const awakeEl = document.getElementById('setting-keep-awake');
+    const acquireEl = document.getElementById('setting-acquire-mode');
+    if (hapticEl) hapticEl.checked = s.haptics;
+    if (confirmEl) confirmEl.checked = s.confirmDestructive;
+    if (awakeEl) awakeEl.checked = s.keepAwake;
+    if (acquireEl) acquireEl.value = s.defaultAcquireMode;
+    document.querySelectorAll('[data-theme-choice]').forEach(btn => {
+        btn.classList.toggle('active', btn.getAttribute('data-theme-choice') === s.theme);
+    });
 }
 
 function icon(name, size = 18, className = '') {
@@ -21,7 +108,9 @@ let defaultState = {
 
 let state = JSON.parse(localStorage.getItem('ultiProState')) || defaultState;
 if (!state.nextLineType) state.nextLineType = 'O'; 
-if (!state.tournaments) state.tournaments = []; 
+if (!state.tournaments) state.tournaments = [];
+normalizeSettings();
+applyAppSettings(); 
 
 let possession = {
     status: 'setup', hasDisc: null, lastPasser: null, currentPointEvents: [],
@@ -178,7 +267,7 @@ function initPointPossession() {
     possession.hasDisc = null;
     possession.lastPasser = null;
     possession.opponentHasDisc = state.nextLineType === 'D';
-    possession.acquireMode = 'block';
+    possession.acquireMode = state.settings.defaultAcquireMode || 'block';
     possession.subStep = null;
     possession.subOutId = null;
 }
@@ -333,7 +422,7 @@ function removeGameFromTournament(event, gameId) {
 
 function deleteGame(event, id) {
     event.stopPropagation();
-    if(confirm("Delete this game and all of its play history?")) {
+    if(!confirmAction("Delete this game and all of its play history?")) {
         state.games = state.games.filter(g => g.id !== id);
         if(state.activeGameId === id) state.activeGameId = null;
         saveData(); renderSeasonView();
@@ -342,7 +431,7 @@ function deleteGame(event, id) {
 
 function deleteTournament(event, id) {
     event.stopPropagation();
-    if(confirm("Delete this tournament folder? (Games inside will be moved to 'Unassigned', NOT deleted).")) {
+    if(!confirmAction("Delete this tournament folder? (Games inside will be moved to 'Unassigned', NOT deleted).")) {
         state.games.forEach(g => { if(g.tournamentId === id) g.tournamentId = null; });
         state.tournaments = state.tournaments.filter(t => t.id !== id);
         if(state.activeTournamentId === id) state.activeTournamentId = null;
@@ -352,7 +441,7 @@ function deleteTournament(event, id) {
 
 // --- POINT MANAGEMENT ---
 function deletePoint(pointId) {
-    if(!confirm("Are you sure you want to permanently delete this point?")) return;
+    if(!confirmAction("Are you sure you want to permanently delete this point?")) return;
     triggerHaptic();
     const game = state.games.find(g => g.id === state.activeGameId);
     game.history = game.history.filter(p => p.pointId !== pointId);
@@ -361,7 +450,7 @@ function deletePoint(pointId) {
 
 function resumePoint(pointId) {
     triggerHaptic();
-    if(!confirm("Edit this point? It will be removed from history and loaded into the Play tab so you can continue it or fix errors.")) return;
+    if(!confirmAction("Edit this point? It will be removed from history and loaded into the Play tab so you can continue it or fix errors.")) return;
     
     const game = state.games.find(g => g.id === state.activeGameId);
     const pointIndex = game.history.findIndex(p => p.pointId === pointId);
@@ -402,7 +491,7 @@ function editPlayer(event, id) {
 
 function deletePlayer(event, id) {
     event.stopPropagation();
-    if(confirm("Remove this player? Past stats remain in old games.")) { state.roster = state.roster.filter(p => p.id !== id); saveData(); renderRosterView(); }
+    if(confirmAction("Remove this player? Past stats remain in old games.")) { state.roster = state.roster.filter(p => p.id !== id); saveData(); renderRosterView(); }
 }
 
 // --- 3. THE STATE MACHINE (PLAY VIEW) ---
@@ -427,6 +516,7 @@ function startPoint() {
     initPointPossession();
     stopPassTimer();
     lastPlayTapId = null;
+    updateWakeLock();
     renderPlayView();
 }
 
@@ -524,6 +614,7 @@ function savePoint(result) {
     possession.subStep = null;
     stopPassTimer();
     lastPlayTapId = null;
+    updateWakeLock();
     saveData(); renderPlayView();
     if (document.getElementById('history-view').classList.contains('active')) renderHistoryView();
     if (document.getElementById('stats-view').classList.contains('active')) renderStatsView();
@@ -784,13 +875,20 @@ function bindGestures() {
 
 // --- 4. FILE I/O ---
 function exportData() {
+    triggerHaptic();
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(state));
     const anchor = document.createElement('a'); anchor.setAttribute("href", dataStr); anchor.setAttribute("download", "ulti_data_export.json"); anchor.click();
 }
 
 function importData(event) {
     const file = event.target.files[0]; if(!file) return; const reader = new FileReader();
-    reader.onload = function(e) { state = JSON.parse(e.target.result); saveData(); alert('Backup Restored Successfully!'); location.reload(); };
+    reader.onload = function(e) {
+        state = JSON.parse(e.target.result);
+        normalizeSettings();
+        saveData();
+        alert('Backup restored successfully.');
+        location.reload();
+    };
     reader.readAsText(file);
 }
 
@@ -844,7 +942,12 @@ function importCSVData(event) {
     }; reader.readAsText(file);
 }
 
-function clearAllData() { if(prompt("Type 'DELETE' to wipe all app data:") === "DELETE") { localStorage.removeItem('ultiProState'); location.reload(); } }
+function clearAllData() {
+    if (!confirmAction('This permanently deletes all games, rosters, and settings on this device.')) return;
+    if (prompt("Type DELETE to confirm:") !== 'DELETE') return;
+    localStorage.removeItem('ultiProState');
+    location.reload();
+}
 
 // --- 5. THE ANALYTICS ENGINE (SYNERGY & LINEUP ASSISTANT) ---
 function setAnalyticsMode(mode) {
@@ -1714,6 +1817,10 @@ function switchTab(tabId) {
     if (tabId === 'roster-view') renderRosterView();
     if (tabId === 'season-view') renderSeasonView();
 }
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') updateWakeLock();
+});
 
 // Boot
 renderPlayView();
