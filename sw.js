@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ulti-pro-v8'; // Bumped version!
+const CACHE_NAME = 'ulti-pro-v9'; // Bumped version!
 
 const urlsToCache = [
   './',
