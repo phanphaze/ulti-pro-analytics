@@ -30,6 +30,131 @@ let possession = {
 };
 let currentViewedPlayerId = null;
 let lastPlayTapId = null;
+let currentTreePointId = null;
+let passTimerTickInterval = null;
+
+let passTimer = {
+    active: false,
+    paused: false,
+    startedAt: 0,
+    pausedAt: 0,
+    accumulatedPause: 0
+};
+
+const PASS_TIMER_MAX_SEC = 10;
+
+function capThrowTime(sec) {
+    const n = parseFloat(sec);
+    if (!Number.isFinite(n) || n < 0) return 0;
+    return Math.min(PASS_TIMER_MAX_SEC, Math.round(n * 10) / 10);
+}
+
+function formatPassTimer(sec) {
+    return `${capThrowTime(sec).toFixed(1)}s`;
+}
+
+function startPassTimer() {
+    passTimer.active = true;
+    passTimer.paused = false;
+    passTimer.startedAt = Date.now();
+    passTimer.pausedAt = 0;
+    passTimer.accumulatedPause = 0;
+}
+
+function stopPassTimer() {
+    passTimer.active = false;
+    passTimer.paused = false;
+    passTimer.pausedAt = 0;
+    passTimer.accumulatedPause = 0;
+}
+
+function pausePassTimer() {
+    if (!passTimer.active || passTimer.paused) return;
+    passTimer.paused = true;
+    passTimer.pausedAt = Date.now();
+}
+
+function resumePassTimer() {
+    if (!passTimer.active || !passTimer.paused) return;
+    passTimer.accumulatedPause += Date.now() - passTimer.pausedAt;
+    passTimer.paused = false;
+    passTimer.pausedAt = 0;
+}
+
+function togglePassTimerPause() {
+    triggerHaptic();
+    if (passTimer.paused) resumePassTimer();
+    else pausePassTimer();
+    renderPlayView();
+}
+
+function getPassTimerElapsedSec() {
+    if (!passTimer.active) return 0;
+    let elapsed = Date.now() - passTimer.startedAt - passTimer.accumulatedPause;
+    if (passTimer.paused) elapsed -= Date.now() - passTimer.pausedAt;
+    return Math.max(0, elapsed / 1000);
+}
+
+function syncPassTimerAfterPossession() {
+    if (possession.status === 'playing' && possession.hasDisc && !possession.subStep) startPassTimer();
+    else stopPassTimer();
+}
+
+function clearPassTimerTick() {
+    if (passTimerTickInterval) {
+        clearInterval(passTimerTickInterval);
+        passTimerTickInterval = null;
+    }
+}
+
+function ensurePassTimerTick() {
+    clearPassTimerTick();
+    if (possession.status !== 'playing' || !possession.hasDisc || passTimer.paused) return;
+    passTimerTickInterval = setInterval(() => {
+        const el = document.getElementById('pass-timer-live');
+        if (!el || possession.status !== 'playing' || !possession.hasDisc) {
+            clearPassTimerTick();
+            return;
+        }
+        el.textContent = formatPassTimer(getPassTimerElapsedSec());
+    }, 100);
+}
+
+function getPlayerThrowTimes(playerId, games) {
+    const times = [];
+    games.forEach(g => {
+        g.history.forEach(pt => {
+            (pt.events || []).forEach(ev => {
+                if (ev.type === 'Pass' && ev.from === playerId && ev.throwTime != null) times.push(ev.throwTime);
+            });
+        });
+    });
+    return times;
+}
+
+function getPlayerAvgThrowTime(playerId, games) {
+    const times = getPlayerThrowTimes(playerId, games);
+    if (!times.length) return null;
+    return Math.round((times.reduce((a, b) => a + b, 0) / times.length) * 10) / 10;
+}
+
+function getAvgThrowTimeToTarget(fromId, toId, games) {
+    const times = [];
+    games.forEach(g => {
+        g.history.forEach(pt => {
+            (pt.events || []).forEach(ev => {
+                if (ev.type === 'Pass' && ev.from === fromId && ev.to === toId && ev.throwTime != null) times.push(ev.throwTime);
+            });
+        });
+    });
+    if (!times.length) return null;
+    return Math.round((times.reduce((a, b) => a + b, 0) / times.length) * 10) / 10;
+}
+
+function getPlayPinId() {
+    if (possession.status === 'playing' && possession.hasDisc) return possession.hasDisc;
+    return lastPlayTapId;
+}
 
 function isPossessionGainEvent(ev) {
     return ev && (ev.type === 'Pickup' || ev.type === 'Block' || ev.type === 'Pickup/Block');
@@ -70,12 +195,14 @@ function startSubFlow(team) {
     if (bench.length === 0) { alert('No bench players available to sub in.'); return; }
     possession.subStep = 'pick-out';
     possession.subOutId = null;
+    pausePassTimer();
     renderPlayView();
 }
 
 function cancelSubFlow() {
     possession.subStep = null;
     possession.subOutId = null;
+    if (possession.hasDisc && passTimer.active) resumePassTimer();
     renderPlayView();
 }
 
@@ -93,13 +220,14 @@ function applyMidPointSub(outId, inId) {
     if (possession.hasDisc === outId) {
         possession.hasDisc = inId;
         possession.lastPasser = null;
+        startPassTimer();
     } else if (possession.lastPasser === outId) {
         possession.lastPasser = null;
     }
 
     possession.subStep = null;
     possession.subOutId = null;
-    lastPlayTapId = inId;
+    lastPlayTapId = null;
     triggerHaptic();
     saveData();
     renderPlayView();
@@ -228,7 +356,7 @@ function deletePoint(pointId) {
     triggerHaptic();
     const game = state.games.find(g => g.id === state.activeGameId);
     game.history = game.history.filter(p => p.pointId !== pointId);
-    saveData(); renderStatsView();
+    saveData(); renderHistoryView(); renderStatsView();
 }
 
 function resumePoint(pointId) {
@@ -256,6 +384,8 @@ function resumePoint(pointId) {
     
     if (possession.currentPointEvents.length === 0) initPointPossession();
     else syncPossessionFromEvents();
+    lastPlayTapId = null;
+    syncPassTimerAfterPossession();
     saveData(); switchTab('play-view');
 }
 
@@ -295,6 +425,7 @@ function startPoint() {
     possession.status = 'playing'; possession.currentPointEvents = [];
     possession.pointParticipantIds = state.roster.filter(p => p.active).map(p => p.id);
     initPointPossession();
+    stopPassTimer();
     lastPlayTapId = null;
     renderPlayView();
 }
@@ -309,19 +440,22 @@ function undoLastAction() {
     triggerHaptic();
     if (possession.currentPointEvents.length === 0) {
         possession.status = 'setup'; possession.hasDisc = null; possession.lastPasser = null; possession.opponentHasDisc = false;
+        stopPassTimer();
+        lastPlayTapId = null;
         renderPlayView(); return;
     }
     const removed = possession.currentPointEvents.pop();
     if (removed?.type === 'Sub') undoSubEvent(removed);
     if (possession.currentPointEvents.length === 0) initPointPossession();
     else syncPossessionFromEvents();
+    lastPlayTapId = null;
+    syncPassTimerAfterPossession();
     renderPlayView();
 }
 
 function tapPlayer(playerId) {
     triggerHaptic();
-    lastPlayTapId = playerId;
-    if (possession.status === 'setup') { toggleFieldStatus(playerId); } 
+    if (possession.status === 'setup') { toggleFieldStatus(playerId); return; } 
     else if (possession.status === 'playing' && possession.subStep === 'pick-out') {
         const player = state.roster.find(p => p.id === playerId);
         if (!player?.active) return;
@@ -340,10 +474,14 @@ function tapPlayer(playerId) {
             if (possession.opponentHasDisc) gainType = possession.acquireMode === 'block' ? 'Block' : 'Pickup';
             possession.currentPointEvents.push({ type: gainType, player: playerId, time: Date.now() });
             possession.hasDisc = playerId; possession.lastPasser = null; possession.opponentHasDisc = false;
+            startPassTimer();
         } else if (possession.hasDisc !== playerId) {
-            possession.currentPointEvents.push({ type: 'Pass', from: possession.hasDisc, to: playerId, time: Date.now() });
+            const throwTime = capThrowTime(getPassTimerElapsedSec());
+            possession.currentPointEvents.push({ type: 'Pass', from: possession.hasDisc, to: playerId, time: Date.now(), throwTime });
             possession.lastPasser = possession.hasDisc; possession.hasDisc = playerId;
+            startPassTimer();
         }
+        lastPlayTapId = null;
         renderPlayView();
     }
 }
@@ -362,7 +500,10 @@ function handleSwipe(playerId, direction) {
     } 
     else if (direction === 'left') {
         possession.currentPointEvents.push({ type: 'Turnover', player: playerId, time: Date.now() });
-        possession.hasDisc = null; possession.lastPasser = null; possession.opponentHasDisc = true; renderPlayView();
+        possession.hasDisc = null; possession.lastPasser = null; possession.opponentHasDisc = true;
+        stopPassTimer();
+        lastPlayTapId = null;
+        renderPlayView();
     }
 }
 
@@ -381,14 +522,16 @@ function savePoint(result) {
     possession.opponentHasDisc = false;
     possession.pointParticipantIds = [];
     possession.subStep = null;
+    stopPassTimer();
     lastPlayTapId = null;
     saveData(); renderPlayView();
+    if (document.getElementById('history-view').classList.contains('active')) renderHistoryView();
     if (document.getElementById('stats-view').classList.contains('active')) renderStatsView();
 }
 
 const SWIPE_THRESHOLD = 88;
 const SWIPE_MAX = 150;
-const SWIPE_COMMIT_MS = 420;
+const SWIPE_COMMIT_MS = 520;
 const SWIPE_SNAP_MS = 340;
 const SWIPE_ACTIVATE_PX = 6;
 
@@ -404,20 +547,38 @@ function canSwipeRow(row) {
     return possession.status === 'playing' && !possession.subStep && possession.hasDisc === playerId && row.classList.contains('swipe-row');
 }
 
+function getSwipeRowEls(row) {
+    return {
+        center: row.querySelector('.swipe-center'),
+        leftSide: row.querySelector('.swipe-side-left'),
+        rightSide: row.querySelector('.swipe-side-right'),
+        leftArrow: row.querySelector('.swipe-side-left .swipe-arrow'),
+        rightArrow: row.querySelector('.swipe-side-right .swipe-arrow'),
+    };
+}
+
 function resetSwipeVisual(row) {
     if (!row) return;
     row.classList.remove('swiping-left', 'swiping-right', 'swipe-commit-left', 'swipe-commit-right', 'swipe-snap-back');
     row.style.removeProperty('background-color');
     row.style.removeProperty('transform');
-    row.style.removeProperty('--swipe-fill');
-    const nameEl = row.querySelector('.swipe-label-name');
-    const actionEl = row.querySelector('.swipe-label-action');
-    const bgLeft = row.querySelector('.swipe-bg-left');
-    const bgRight = row.querySelector('.swipe-bg-right');
-    if (nameEl) nameEl.style.opacity = '';
-    if (actionEl) { actionEl.style.opacity = ''; actionEl.textContent = ''; }
-    if (bgLeft) bgLeft.style.transform = '';
-    if (bgRight) bgRight.style.transform = '';
+    const { center, leftSide, rightSide, leftArrow, rightArrow } = getSwipeRowEls(row);
+    if (center) {
+        center.style.removeProperty('transform');
+        center.style.removeProperty('opacity');
+        center.style.removeProperty('transition');
+    }
+    [leftSide, rightSide].forEach(el => {
+        if (!el) return;
+        el.classList.remove('launching');
+        el.style.removeProperty('opacity');
+        el.style.removeProperty('transition');
+    });
+    [leftArrow, rightArrow].forEach(el => {
+        if (!el) return;
+        el.style.removeProperty('transform');
+        el.style.removeProperty('transition');
+    });
 }
 
 function rubberBandDelta(deltaX) {
@@ -429,35 +590,28 @@ function rubberBandDelta(deltaX) {
 }
 
 function applySwipeNeutral(row) {
-    const discBlue = [33, 150, 243];
-    const fieldGray = [38, 50, 56];
-    const base = row.classList.contains('has-disc') ? discBlue : fieldGray;
-    const nameEl = row.querySelector('.swipe-label-name');
-    const actionEl = row.querySelector('.swipe-label-action');
-    const bgLeft = row.querySelector('.swipe-bg-left');
-    const bgRight = row.querySelector('.swipe-bg-right');
+    const base = [38, 50, 56];
+    const { center, leftSide, rightSide, leftArrow, rightArrow } = getSwipeRowEls(row);
 
     row.classList.remove('swiping-left', 'swiping-right');
     row.style.transition = 'none';
     row.style.backgroundColor = `rgb(${base[0]}, ${base[1]}, ${base[2]})`;
-    row.style.transform = 'translateX(0)';
-    if (bgLeft) bgLeft.style.transform = 'scaleX(0)';
-    if (bgRight) bgRight.style.transform = 'scaleX(0)';
-    if (actionEl) { actionEl.textContent = ''; actionEl.style.opacity = '0'; }
-    if (nameEl) nameEl.style.opacity = '1';
+    if (center) {
+        center.style.transform = 'translateX(0)';
+        center.style.opacity = '1';
+    }
+    if (leftSide) leftSide.style.opacity = '';
+    if (rightSide) rightSide.style.opacity = '';
+    if (leftArrow) leftArrow.style.transform = 'scale(1)';
+    if (rightArrow) rightArrow.style.transform = 'scale(1)';
 }
 
 function updateSwipeVisual(row, deltaX) {
     const bandX = rubberBandDelta(deltaX);
     const abs = Math.abs(bandX);
     const progress = Math.min(1, abs / SWIPE_MAX);
-    const nameEl = row.querySelector('.swipe-label-name');
-    const actionEl = row.querySelector('.swipe-label-action');
-    const bgLeft = row.querySelector('.swipe-bg-left');
-    const bgRight = row.querySelector('.swipe-bg-right');
-    const discBlue = [33, 150, 243];
-    const fieldGray = [38, 50, 56];
-    const base = row.classList.contains('has-disc') ? discBlue : fieldGray;
+    const { center, leftSide, rightSide, leftArrow, rightArrow } = getSwipeRowEls(row);
+    const base = [38, 50, 56];
 
     row.style.transition = 'none';
 
@@ -466,55 +620,52 @@ function updateSwipeVisual(row, deltaX) {
         return;
     }
 
+    const arrowScale = 1 + progress * 1.35;
+    const slideX = bandX * 0.55;
+
     if (bandX < 0) {
         row.classList.add('swiping-left');
         row.classList.remove('swiping-right');
         row.style.backgroundColor = lerpRgb(progress, base, [198, 40, 40]);
-        row.style.transform = `translateX(${bandX * 0.35}px)`;
-        if (bgLeft) bgLeft.style.transform = `scaleX(${progress})`;
-        if (bgRight) bgRight.style.transform = 'scaleX(0)';
-        if (actionEl) { actionEl.textContent = 'TURNOVER'; actionEl.style.opacity = String(progress); }
-        if (nameEl) nameEl.style.opacity = String(Math.max(0, 1 - progress * 0.92));
+        if (center) center.style.transform = `translateX(${slideX}px)`;
+        if (leftArrow) leftArrow.style.transform = `scale(${arrowScale})`;
+        if (rightArrow) rightArrow.style.transform = 'scale(1)';
+        if (leftSide) leftSide.style.opacity = String(0.5 + progress * 0.5);
+        if (rightSide) rightSide.style.opacity = String(Math.max(0.25, 0.5 - progress * 0.35));
     } else {
         row.classList.add('swiping-right');
         row.classList.remove('swiping-left');
         row.style.backgroundColor = lerpRgb(progress, base, [46, 125, 50]);
-        row.style.transform = `translateX(${bandX * 0.35}px)`;
-        if (bgRight) bgRight.style.transform = `scaleX(${progress})`;
-        if (bgLeft) bgLeft.style.transform = 'scaleX(0)';
-        if (actionEl) { actionEl.textContent = 'GOAL!'; actionEl.style.opacity = String(progress); }
-        if (nameEl) nameEl.style.opacity = String(Math.max(0, 1 - progress * 0.92));
+        if (center) center.style.transform = `translateX(${slideX}px)`;
+        if (rightArrow) rightArrow.style.transform = `scale(${arrowScale})`;
+        if (leftArrow) leftArrow.style.transform = 'scale(1)';
+        if (rightSide) rightSide.style.opacity = String(0.5 + progress * 0.5);
+        if (leftSide) leftSide.style.opacity = String(Math.max(0.25, 0.5 - progress * 0.35));
     }
 }
 
 function snapBackSwipe(row, onDone) {
     row.classList.add('swipe-snap-back');
     row.classList.remove('swiping-left', 'swiping-right');
-    const nameEl = row.querySelector('.swipe-label-name');
-    const actionEl = row.querySelector('.swipe-label-action');
-    const bgLeft = row.querySelector('.swipe-bg-left');
-    const bgRight = row.querySelector('.swipe-bg-right');
+    const { center, leftSide, rightSide, leftArrow, rightArrow } = getSwipeRowEls(row);
     const snapEase = 'cubic-bezier(0.34, 1.25, 0.64, 1)';
 
-    row.style.transition = `transform ${SWIPE_SNAP_MS}ms ${snapEase}, background-color ${SWIPE_SNAP_MS}ms ease`;
-    row.style.transform = 'translateX(0)';
+    row.style.transition = `background-color ${SWIPE_SNAP_MS}ms ease`;
     row.style.removeProperty('background-color');
-    if (bgLeft) {
-        bgLeft.style.transition = `transform ${SWIPE_SNAP_MS}ms ease`;
-        bgLeft.style.transform = 'scaleX(0)';
+    if (center) {
+        center.style.transition = `transform ${SWIPE_SNAP_MS}ms ${snapEase}`;
+        center.style.transform = 'translateX(0)';
     }
-    if (bgRight) {
-        bgRight.style.transition = `transform ${SWIPE_SNAP_MS}ms ease`;
-        bgRight.style.transform = 'scaleX(0)';
-    }
-    if (nameEl) {
-        nameEl.style.transition = `opacity ${SWIPE_SNAP_MS * 0.85}ms ease`;
-        nameEl.style.opacity = '1';
-    }
-    if (actionEl) {
-        actionEl.style.transition = `opacity ${SWIPE_SNAP_MS * 0.7}ms ease`;
-        actionEl.style.opacity = '0';
-    }
+    [leftSide, rightSide].forEach(el => {
+        if (!el) return;
+        el.style.transition = `opacity ${SWIPE_SNAP_MS * 0.85}ms ease`;
+        el.style.opacity = '';
+    });
+    [leftArrow, rightArrow].forEach(el => {
+        if (!el) return;
+        el.style.transition = `transform ${SWIPE_SNAP_MS}ms ${snapEase}`;
+        el.style.transform = 'scale(1)';
+    });
 
     setTimeout(() => {
         row.classList.remove('swipe-snap-back');
@@ -538,15 +689,20 @@ function shouldCommitSwipe(deltaX, velocityX) {
 }
 
 function commitSwipeAnimation(row, direction, onDone) {
-    const actionEl = row.querySelector('.swipe-label-action');
-    const nameEl = row.querySelector('.swipe-label-name');
+    const { center, leftSide, rightSide, leftArrow, rightArrow } = getSwipeRowEls(row);
+    const launchSide = direction === 'left' ? leftSide : rightSide;
+    const idleSide = direction === 'left' ? rightSide : leftSide;
+
     row.classList.remove('swiping-left', 'swiping-right');
     row.classList.add(direction === 'left' ? 'swipe-commit-left' : 'swipe-commit-right');
-    if (actionEl) {
-        actionEl.textContent = direction === 'left' ? 'TURNOVER' : 'GOAL!';
-        actionEl.style.opacity = '1';
-    }
-    if (nameEl) nameEl.style.opacity = '0';
+    if (center) center.style.opacity = '0';
+    if (idleSide) idleSide.style.opacity = '0';
+    [leftArrow, rightArrow].forEach(el => {
+        if (!el) return;
+        el.style.transition = 'none';
+        el.style.removeProperty('transform');
+    });
+    if (launchSide) launchSide.classList.add('launching');
     triggerHaptic();
     setTimeout(() => { resetSwipeVisual(row); onDone(); }, SWIPE_COMMIT_MS);
 }
@@ -1062,13 +1218,17 @@ function renderSwipePlayerRow(p, extraClass, roleGames) {
         return `<div class="list-row on-field ${extraClass}" data-id="${p.id}"><div class="info-block"><span>#${p.num} ${p.name} ${roleBadgeHtml(p.id, roleGames)}</span></div></div>`;
     }
     return `<div class="list-row swipe-row on-field ${extraClass}" data-id="${p.id}">
-        <div class="swipe-bg swipe-bg-left"></div>
-        <div class="swipe-bg swipe-bg-right"></div>
-        <div class="swipe-labels">
-            <span class="swipe-label-name">#${p.num} ${p.name} ${roleBadgeHtml(p.id, roleGames)}</span>
-            <span class="swipe-label-action"></span>
+        <div class="swipe-side swipe-side-left">
+            <span class="swipe-arrow">${icon('arrow-left', 26)}</span>
+            <span class="swipe-side-label">turnover</span>
         </div>
-        <span class="swipe-hint">Slide to act — release centered to cancel</span>
+        <div class="swipe-center">
+            <span class="swipe-player-name">#${p.num} ${p.name} ${roleBadgeHtml(p.id, roleGames)}</span>
+        </div>
+        <div class="swipe-side swipe-side-right">
+            <span class="swipe-side-label">goal</span>
+            <span class="swipe-arrow">${icon('arrow-right', 26)}</span>
+        </div>
     </div>`;
 }
 
@@ -1125,13 +1285,20 @@ function getPlayBannerText() {
         const outP = state.roster.find(p => p.id === possession.subOutId);
         return `Sub: tap bench player replacing #${outP?.num || '?'}.`;
     }
-    if (possession.hasDisc) return 'Pass: tap another player. Score: slide disc holder right (green). Turnover: slide left (red).';
+    if (possession.hasDisc) return 'Pass: tap another player.';
     if (possession.opponentHasDisc) {
         return possession.acquireMode === 'block'
             ? 'They have the disc — tap who got the BLOCK.'
             : 'They have the disc — tap who PICKED IT UP after their turn.';
     }
     return 'Tap player who gains possession (pull / first touch).';
+}
+
+function getPlayBannerClass() {
+    if (possession.subStep) return 'state-sub';
+    if (possession.hasDisc) return 'state-we-disc';
+    if (possession.opponentHasDisc) return 'state-they-disc';
+    return 'state-neutral';
 }
 
 // --- 6. VIEW RENDERING ---
@@ -1150,19 +1317,23 @@ function renderPlayView() {
             </div>
             <button class="btn btn-primary btn-start-point" onclick="startPoint()">${icon('play', 18)} Start Point (${activeCount}/7)</button>`;
     } else {
+        const toolbarSub = possession.subStep ? ' play-toolbar-sub' : '';
         html += `<div class="play-active-chrome">
-                 <div class="play-toolbar">
-                    <button type="button" class="btn-icon" onclick="undoLastAction()" title="Undo" aria-label="Undo">${icon('undo-2', 20)}</button>
-                    <div class="play-toolbar-actions">
-                        <button type="button" class="btn btn-sm btn-danger" onclick="savePoint('Lost')">${icon('circle-minus', 16)} They Scored</button>
-                        ${possession.subStep ? '' : `
-                        <button type="button" class="btn btn-sm btn-info" onclick="startSubFlow('us')">${icon('user-plus', 16)} Our Sub</button>
-                        <button type="button" class="btn btn-sm btn-secondary" onclick="startSubFlow('opponent')">${icon('alert-circle', 16)} Opp. Injury</button>`}
-                    </div>
+                 <div class="play-toolbar${toolbarSub}">
+                    <button type="button" class="btn-icon btn-undo" onclick="undoLastAction()" title="Undo" aria-label="Undo">${icon('undo-2', 18)}</button>
+                    <button type="button" class="btn btn-sm btn-danger" onclick="savePoint('Lost')">${icon('circle-minus', 16)} They Scored</button>
+                    ${possession.subStep ? '' : `<button type="button" class="btn btn-sm btn-info" onclick="startSubFlow('us')">${icon('user-plus', 16)} Our Sub</button>`}
                  </div>
                  ${possession.subStep ? `<button type="button" class="btn btn-sm btn-secondary play-cancel-sub" onclick="cancelSubFlow()">${icon('x', 16)} Cancel Sub</button>` : ''}
-                 <div class="state-banner state-${state.nextLineType.toLowerCase()} ${possession.subStep ? 'state-sub' : ''}">
+                 <div class="state-banner ${getPlayBannerClass()}">
                     <span class="state-banner-text">${getPlayBannerText()}</span>
+                    ${possession.hasDisc && !possession.subStep ? `
+                    <div class="pass-timer-bar">
+                        <span id="pass-timer-live" class="pass-timer-display">${formatPassTimer(getPassTimerElapsedSec())}</span>
+                        <button type="button" class="pass-timer-btn ${passTimer.paused ? 'paused' : ''}" onclick="togglePassTimerPause()">
+                            ${passTimer.paused ? icon('play', 14) + ' Resume' : icon('pause', 14) + ' Pause'}
+                        </button>
+                    </div>` : ''}
                  </div>
                  ${!possession.hasDisc && possession.opponentHasDisc ? `
                  <div class="acquire-bar">
@@ -1182,13 +1353,14 @@ function renderPlayView() {
 
     if (possession.status === 'setup') {
         const lineupScore = (id) => getLineupSortScore(id, selectedIds, sortCache, lineType);
-        onFieldPlayers = pinPlayerToTop(sortPlayPlayers(onFieldPlayers, lineupScore), lastPlayTapId);
-        benchPlayers = pinPlayerToTop(sortPlayPlayers(benchPlayers, lineupScore), lastPlayTapId);
+        const pinId = getPlayPinId();
+        onFieldPlayers = pinPlayerToTop(sortPlayPlayers(onFieldPlayers, lineupScore), pinId);
+        benchPlayers = pinPlayerToTop(sortPlayPlayers(benchPlayers, lineupScore), pinId);
     } else {
         const passScore = (id) => possession.hasDisc
             ? getPassSortScore(id, possession.hasDisc, sortCache)
             : getLineupSortScore(id, selectedIds, sortCache, lineType);
-        onFieldPlayers = pinPlayerToTop(sortPlayPlayers(onFieldPlayers, passScore), lastPlayTapId);
+        onFieldPlayers = pinPlayerToTop(sortPlayPlayers(onFieldPlayers, passScore), getPlayPinId());
     }
 
     html += `<h3>On Field</h3><div id="active-players">`;
@@ -1222,6 +1394,7 @@ function renderPlayView() {
     container.innerHTML = html;
     bindGestures();
     refreshIcons(container);
+    ensurePassTimerTick();
 }
 
 function renderStatsView() {
@@ -1241,17 +1414,33 @@ function renderStatsView() {
     }).filter(p => p.pts > 0).sort((a,b) => b.pts - a.pts);
     
     if(gameStats.length === 0) html += `<div class="stat-line" style="padding:12px; color:#aaa;">No points played in this scope yet.</div>`;
-    gameStats.forEach(p => { html += `<div class="stat-line clickable" onclick="openPlayerModal('${p.id}')"><span>#${p.num} ${p.name}</span><strong style="color:var(--primary);">${p.pts} pts</strong></div>`; });
+    gameStats.forEach(p => {
+        const avgThrow = getPlayerAvgThrowTime(p.id, relevantGames);
+        const throwSub = avgThrow != null ? ` · ${avgThrow}s avg throw` : '';
+        html += `<div class="stat-line clickable" onclick="openPlayerModal('${p.id}')"><span>#${p.num} ${p.name}<span style="font-size:12px; color:var(--text-muted);">${throwSub}</span></span><strong style="color:var(--primary);">${p.pts} pts</strong></div>`;
+    });
     html += `</div>`;
+    container.innerHTML = html;
+    refreshIcons(container);
+}
 
-    if (!state.activeGameId) { html += `<div style="text-align:center; color:#aaa;">Select a game in the Season tab to view history logs.</div>`; container.innerHTML = html; refreshIcons(container); return; }
+function renderHistoryView() {
+    const container = document.getElementById('history-content');
+    if (!state.activeGameId) {
+        container.innerHTML = `<div style="text-align:center; color:#aaa; padding:20px;">Select a game in the Season tab to view point history and play diagrams.</div>`;
+        return;
+    }
 
     const game = state.games.find(g => g.id === state.activeGameId);
-    html += renderOnFieldStreakSection(game);
+    let html = renderOnFieldStreakSection(game);
 
     const scoreText = getGameScore(game).text;
     html += `<h3>Game History: ${game.name} <span style="color:var(--warning); float:right;">Score: ${scoreText}</span></h3>`;
-    
+
+    if (game.history.length === 0) {
+        html += `<div style="text-align:center; color:#aaa; padding:16px;">No points logged yet. Record plays in the Play tab.</div>`;
+    }
+
     [...game.history].reverse().forEach((point, index) => {
         const isWon = point.result === 'Won'; const resultColor = isWon ? 'var(--primary)' : 'var(--danger)'; const lineStr = point.lineType === 'O' ? 'O-Line' : 'D-Line';
         const rosterNames = point.playerIds.map(id => state.roster.find(r => r.id === id)?.name || 'Unknown').join(", ");
@@ -1260,7 +1449,7 @@ function renderStatsView() {
         const subNote = subCount || stoppageCount
             ? `<div style="font-size:12px; color:var(--warning); margin-bottom:6px;">${subCount ? `${subCount} mid-point sub${subCount > 1 ? 's' : ''}` : ''}${subCount && stoppageCount ? ' · ' : ''}${stoppageCount ? 'opponent injury stop' : ''}</div>`
             : '';
-        
+
         html += `
             <div class="history-card" style="border-left-color: ${resultColor}; cursor: default;">
                 <div style="margin-bottom: 6px; font-size: 16px;">
@@ -1283,11 +1472,16 @@ function getPlayerName(id) { const p = state.roster.find(r => r.id === id); retu
 
 function openTreeModal(pointId) {
     triggerHaptic();
+    currentTreePointId = pointId;
     const game = state.games.find(g => g.id === state.activeGameId); const point = game.history.find(p => p.pointId === pointId);
     document.getElementById('tree-title').innerText = `${point.lineType}-Line (${point.result})`;
     const container = document.getElementById('tree-content');
-    
-    if (!point.events || point.events.length === 0) { container.innerHTML = `<div style="color:var(--text-muted); width:100%; text-align:center;">No pass data recorded for this point.</div>`; document.getElementById('tree-modal').style.display = 'block'; return; }
+
+    if (!point.events || point.events.length === 0) {
+        container.innerHTML = `<div style="color:var(--text-muted); width:100%; text-align:center;">No pass data recorded for this point.</div>`;
+        document.getElementById('tree-modal').style.display = 'block';
+        return;
+    }
 
     let html = '';
     point.events.forEach((ev, idx) => {
@@ -1299,7 +1493,19 @@ function openTreeModal(pointId) {
             if (idx > 0) html += `<div class="divider-node">Possession Change</div>`;
             html += `<div class="tree-node" onclick="openPlayerModal('${ev.player}')">${getPlayerName(ev.player)}</div>`;
         }
-        else if (ev.type === 'Pass') html += `<div class="tree-arrow">${icon('arrow-right', 18)}</div><div class="tree-node" onclick="openPlayerModal('${ev.to}')">${getPlayerName(ev.to)}</div>`;
+        else if (ev.type === 'Pass') {
+            const throwVal = ev.throwTime != null ? ev.throwTime : '';
+            html += `<div class="tree-pass-row">
+                <div class="tree-node" onclick="openPlayerModal('${ev.from}')">${getPlayerName(ev.from)}</div>
+                <div class="tree-pass-time" onclick="event.stopPropagation()">
+                    <input type="number" step="0.1" min="0" max="10" value="${throwVal}" placeholder="—"
+                        onchange="updatePassThrowTime(${idx}, this.value)" title="Time to throw (max 10s)">
+                    <span>s</span>
+                </div>
+                <div class="tree-arrow">${icon('arrow-right', 18)}</div>
+                <div class="tree-node" onclick="openPlayerModal('${ev.to}')">${getPlayerName(ev.to)}</div>
+            </div>`;
+        }
         else if (ev.type === 'Goal') html += `<div class="tree-arrow">${icon('arrow-right', 18)}</div><div class="tree-node goal-node" onclick="openPlayerModal('${ev.player}')">${icon('target', 14)} GOAL: ${getPlayerName(ev.player)}</div>`;
         else if (ev.type === 'Turnover') html += `<div class="tree-arrow">${icon('arrow-right', 18)}</div><div class="tree-node turn-node" onclick="openPlayerModal('${ev.player}')">${icon('circle-x', 14)} Turnover: ${getPlayerName(ev.player)}</div>`;
         else if (ev.type === 'Sub' && ev.team === 'us') {
@@ -1311,6 +1517,20 @@ function openTreeModal(pointId) {
     container.innerHTML = html;
     document.getElementById('tree-modal').style.display = 'block';
     refreshIcons(container);
+}
+
+function updatePassThrowTime(eventIndex, rawValue) {
+    if (!currentTreePointId || !state.activeGameId) return;
+    const game = state.games.find(g => g.id === state.activeGameId);
+    const point = game.history.find(p => p.pointId === currentTreePointId);
+    const ev = point?.events?.[eventIndex];
+    if (!ev || ev.type !== 'Pass') return;
+    const parsed = parseFloat(rawValue);
+    if (!Number.isFinite(parsed)) return;
+    ev.throwTime = capThrowTime(parsed);
+    saveData();
+    openTreeModal(currentTreePointId);
+    if (document.getElementById('stats-view').classList.contains('active')) renderStatsView();
 }
 
 function closeTreeModal() { triggerHaptic(); document.getElementById('tree-modal').style.display = 'none'; }
@@ -1444,15 +1664,21 @@ function updatePlayerModalStats() {
 
     const split = getPlayerLineSplit(currentViewedPlayerId, relevantGames);
     const role = getPlayerRole(currentViewedPlayerId, relevantGames);
+    const avgThrow = getPlayerAvgThrowTime(currentViewedPlayerId, relevantGames);
+    const throwCount = getPlayerThrowTimes(currentViewedPlayerId, relevantGames).length;
     const roleEl = document.getElementById('modal-role-line');
     if (role) roleEl.textContent = role.title;
     else if (split.total > 0) roleEl.textContent = `${split.oPts} offense · ${split.dPts} defense pts`;
     else roleEl.textContent = '';
+    if (avgThrow != null) {
+        roleEl.textContent += roleEl.textContent ? ` · ${avgThrow}s avg throw (${throwCount})` : `${avgThrow}s avg throw (${throwCount} throws)`;
+    }
 
     document.getElementById('modal-stats-grid').innerHTML = `
         <div class="stat-box"><div class="val">${stats.goals}</div><div class="lbl">Goals</div></div>
         <div class="stat-box"><div class="val">${stats.assists}</div><div class="lbl">Assists</div></div>
         <div class="stat-box"><div class="val">${stats.passes}</div><div class="lbl">Passes</div></div>
+        <div class="stat-box"><div class="val">${avgThrow != null ? avgThrow + 's' : '—'}</div><div class="lbl">Avg Throw</div></div>
         <div class="stat-box"><div class="val">${stats.blocks}</div><div class="lbl">Blocks</div></div>
         <div class="stat-box"><div class="val">${stats.drops}</div><div class="lbl">Turnovers</div></div>
     `;
@@ -1460,7 +1686,12 @@ function updatePlayerModalStats() {
     if(sortedTargets.length === 0) targetHtml = '<div style="color:#aaa;">No passes logged in this scope.</div>';
     sortedTargets.forEach(([tId, count]) => {
         const tName = state.roster.find(p => p.id === tId)?.name || 'Unknown';
-        targetHtml += `<div style="padding:12px; border-bottom:1px solid #333; display:flex; justify-content:space-between;"><span>${tName}</span><strong style="color:var(--primary);">${count} passes</strong></div>`;
+        const avgToTarget = getAvgThrowTimeToTarget(currentViewedPlayerId, tId, relevantGames);
+        const timeStr = avgToTarget != null ? `${avgToTarget}s avg throw` : 'no timed passes';
+        targetHtml += `<div style="padding:12px; border-bottom:1px solid #333; display:flex; justify-content:space-between; align-items:center; gap:10px;">
+            <span>${tName}</span>
+            <span style="text-align:right;"><strong style="color:var(--primary);">${count} passes</strong><br><span style="font-size:12px; color:var(--text-muted);">${timeStr}</span></span>
+        </div>`;
     });
     document.getElementById('modal-targets').innerHTML = targetHtml;
     refreshIcons(document.getElementById('player-modal'));
@@ -1473,11 +1704,12 @@ function switchTab(tabId) {
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.getElementById(tabId).classList.add('active');
     
-    const tabs = document.querySelectorAll('.tab'); const viewIds = ['play-view', 'stats-view', 'analytics-view', 'roster-view', 'season-view'];
+    const tabs = document.querySelectorAll('.tab'); const viewIds = ['play-view', 'stats-view', 'history-view', 'analytics-view', 'roster-view', 'season-view'];
     const index = viewIds.indexOf(tabId); if (index > -1) tabs[index].classList.add('active');
     
     if (tabId === 'play-view') renderPlayView();
     if (tabId === 'stats-view') renderStatsView();
+    if (tabId === 'history-view') renderHistoryView();
     if (tabId === 'analytics-view') setAnalyticsMode('assistant'); // Default mode
     if (tabId === 'roster-view') renderRosterView();
     if (tabId === 'season-view') renderSeasonView();

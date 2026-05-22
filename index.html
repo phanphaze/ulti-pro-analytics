@@ -20,7 +20,7 @@
 
         .tabs { display: flex; background-color: var(--surface); border-bottom: 1px solid #333; overflow-x: auto; white-space: nowrap; scrollbar-width: none; }
         .tabs::-webkit-scrollbar { display: none; }
-        .tab { flex: 1; min-width: 70px; padding: 15px 10px; text-align: center; font-size: 14px; font-weight: bold; color: var(--text-muted); cursor: pointer; transition: 0.2s;}
+        .tab { flex: 1; min-width: 58px; padding: 12px 6px; text-align: center; font-size: 13px; font-weight: bold; color: var(--text-muted); cursor: pointer; transition: 0.2s;}
         .tab.active { color: var(--primary); border-bottom: 3px solid var(--primary); }
         
         .view { display: none; flex: 1; overflow-y: auto; padding: 15px; padding-bottom: 40px; }
@@ -30,32 +30,40 @@
         .list-row { display: flex; justify-content: space-between; align-items: center; background-color: var(--surface); padding: 15px; margin-bottom: 8px; border-radius: 8px; cursor: pointer; transition: transform 0.1s, background 0.2s; position: relative; overflow: hidden;}
         .list-row:active { transform: scale(0.98); } 
         .list-row.on-field { background-color: #263238; border: 1px solid #455A64; }
-        .list-row.has-disc { background-color: var(--active); color: white; border: 2px solid white; box-shadow: 0 0 10px rgba(33,150,243,0.5); transform: scale(1.02); z-index: 2;}
+        .list-row.has-disc:not(.swipe-row) { background-color: var(--active); color: white; border: 2px solid white; box-shadow: 0 0 10px rgba(33,150,243,0.5); transform: scale(1.02); z-index: 2;}
         .list-row.last-passer { border: 2px dashed var(--warning); background-color: #3e2723; }
 
-        .swipe-row { touch-action: pan-y; }
+        .swipe-row { touch-action: pan-y; justify-content: space-between; gap: 6px; padding: 14px 10px; z-index: 2; }
+        .swipe-row.has-disc { border: 2px solid rgba(255,255,255,0.35); box-shadow: 0 0 10px rgba(0,0,0,0.35); }
         .swipe-row.swiping-left,
         .swipe-row.swiping-right { transition: none !important; }
-        .swipe-row.swipe-snap-back { transition: transform 0.34s cubic-bezier(0.34, 1.25, 0.64, 1), background-color 0.34s ease !important; }
-        .swipe-row.swipe-snap-back.has-disc { transform: translateX(0) scale(1.02) !important; }
-        .swipe-row .swipe-labels { position: relative; z-index: 2; display: flex; align-items: center; min-height: 28px; pointer-events: none; }
-        .swipe-row .swipe-label-name,
-        .swipe-row .swipe-label-action { font-size: 17px; font-weight: bold; line-height: 1.3; }
-        .swipe-row .swipe-label-action { position: absolute; left: 0; top: 0; opacity: 0; letter-spacing: 0.5px; text-transform: uppercase; white-space: nowrap; }
-        .swipe-row .swipe-hint { display: block; font-size: 11px; font-weight: normal; opacity: 0.85; margin-top: 4px; pointer-events: none; }
-        .swipe-row .swipe-bg { position: absolute; inset: 0; pointer-events: none; z-index: 0; border-radius: 8px; opacity: 0; transition: opacity 0.05s linear; }
-        .swipe-row .swipe-bg-left { background: linear-gradient(90deg, rgba(198,40,40,0.95) 0%, rgba(198,40,40,0.35) 55%, transparent 100%); transform-origin: left center; }
-        .swipe-row .swipe-bg-right { background: linear-gradient(270deg, rgba(56,142,60,0.95) 0%, rgba(56,142,60,0.35) 55%, transparent 100%); transform-origin: right center; }
-        .swipe-row.swiping-left .swipe-bg-left,
-        .swipe-row.swiping-right .swipe-bg-right { opacity: 1; }
-        .swipe-row.swipe-commit-left,
-        .swipe-row.swipe-commit-right { transition: background-color 0.4s ease, transform 0.4s cubic-bezier(0.2, 0.9, 0.3, 1), box-shadow 0.4s ease; }
-        .swipe-row.swipe-commit-left { background-color: #C62828 !important; border-color: #EF5350 !important; box-shadow: 0 0 18px rgba(198,40,40,0.55); transform: translateX(-28px) scale(1.02); }
-        .swipe-row.swipe-commit-right { background-color: #2E7D32 !important; border-color: #81C784 !important; box-shadow: 0 0 18px rgba(76,175,80,0.55); transform: translateX(28px) scale(1.02); }
-        .swipe-row.swipe-commit-left .swipe-label-action,
-        .swipe-row.swipe-commit-right .swipe-label-action { opacity: 1 !important; font-size: 20px; }
-        .swipe-row.swipe-commit-left .swipe-label-name,
-        .swipe-row.swipe-commit-right .swipe-label-name { opacity: 0 !important; }
+        .swipe-row.swipe-snap-back { transition: background-color 0.34s ease !important; }
+        .swipe-side { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; flex: 0 0 68px; opacity: 0.5; pointer-events: none; z-index: 2; transition: opacity 0.05s linear; }
+        .swipe-side-left { color: #EF5350; }
+        .swipe-side-right { color: #81C784; }
+        .swipe-side .swipe-arrow { display: flex; align-items: center; justify-content: center; transition: transform 0.05s linear; transform-origin: center center; }
+        .swipe-side-label { font-size: 10px; font-weight: 700; text-transform: lowercase; letter-spacing: 0.2px; line-height: 1.2; }
+        .swipe-center { flex: 1; min-width: 0; text-align: center; z-index: 2; pointer-events: none; will-change: transform; }
+        .swipe-player-name { font-size: 17px; font-weight: bold; line-height: 1.3; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .swipe-row.swiping-left .swipe-side-left,
+        .swipe-row.swiping-right .swipe-side-right { opacity: 1; }
+        .swipe-row.swipe-commit-left { background-color: #C62828 !important; border-color: #EF5350 !important; box-shadow: 0 0 18px rgba(198,40,40,0.55); }
+        .swipe-row.swipe-commit-right { background-color: #2E7D32 !important; border-color: #81C784 !important; box-shadow: 0 0 18px rgba(76,175,80,0.55); }
+        .swipe-row.swipe-commit-left .swipe-center,
+        .swipe-row.swipe-commit-right .swipe-center { opacity: 0; transition: opacity 0.15s ease; }
+        .swipe-side.launching .swipe-arrow { animation-duration: 0.5s; animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1); animation-fill-mode: forwards; }
+        .swipe-side-left.launching .swipe-arrow { animation-name: swipeArrowLaunchLeft; }
+        .swipe-side-right.launching .swipe-arrow { animation-name: swipeArrowLaunchRight; }
+        @keyframes swipeArrowLaunchLeft {
+            0% { transform: scale(1.4); opacity: 1; }
+            65% { opacity: 1; }
+            100% { transform: translateX(-140px) scale(2.4); opacity: 0; }
+        }
+        @keyframes swipeArrowLaunchRight {
+            0% { transform: scale(1.4); opacity: 1; }
+            65% { opacity: 1; }
+            100% { transform: translateX(140px) scale(2.4); opacity: 0; }
+        }
         
         .info-block { display: flex; flex-direction: column; gap: 4px; font-size: 16px; font-weight: bold; pointer-events: none; }
         .info-sub { font-size: 12px; font-weight: normal; color: var(--text-muted); }
@@ -79,12 +87,22 @@
         .btn-start-point { gap: 8px; }
         .btn-icon { display: inline-flex; align-items: center; justify-content: center; width: 42px; height: 42px; min-width: 42px; padding: 0; border: 1px solid #555; border-radius: 10px; background: #2a2a2a; color: var(--text); cursor: pointer; flex-shrink: 0; }
         .btn-icon:active { transform: scale(0.94); background: #383838; }
+        .btn-icon.btn-undo { background: var(--warning); color: #1a1a1a; border-color: #e68900; }
+        .btn-icon.btn-undo:active { background: #ffb74d; }
 
         /* Play view chrome */
         .play-active-chrome { margin-bottom: 14px; }
-        .play-toolbar { display: flex; gap: 10px; align-items: flex-start; margin-bottom: 0; }
-        .play-toolbar-actions { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; min-width: 0; }
-        .play-toolbar-actions .btn { display: inline-flex; align-items: center; justify-content: center; flex-wrap: wrap; }
+        .play-toolbar { display: grid; grid-template-columns: 40px 1fr 1fr; gap: 8px; align-items: stretch; margin-bottom: 0; }
+        .play-toolbar.play-toolbar-sub { grid-template-columns: 40px 1fr; }
+        .play-toolbar .btn { display: inline-flex; align-items: center; justify-content: center; flex-wrap: wrap; margin: 0; min-height: 40px; height: 100%; box-sizing: border-box; }
+        .play-toolbar .btn-icon.btn-undo { width: 40px; min-width: 40px; height: auto; min-height: 40px; margin: 0; align-self: stretch; }
+        .pass-timer-bar { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.15); }
+        .pass-timer-display { font-size: 18px; font-weight: bold; font-variant-numeric: tabular-nums; min-width: 48px; }
+        .pass-timer-btn { display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 6px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.35); background: rgba(0,0,0,0.25); color: white; font-size: 12px; font-weight: bold; cursor: pointer; }
+        .pass-timer-btn.paused { background: var(--warning); color: #1a1a1a; border-color: #e68900; }
+        .tree-pass-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; width: 100%; }
+        .tree-pass-time { display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-muted); }
+        .tree-pass-time input { width: 52px; padding: 6px 8px; border-radius: 6px; border: 1px solid #555; background: #222; color: white; font-size: 14px; font-weight: bold; text-align: center; }
         .play-cancel-sub { width: 100%; margin-top: 8px; }
         .state-banner { text-align: center; padding: 10px 12px; font-size: 13px; font-weight: 600; line-height: 1.45; border-radius: 8px; margin: 10px 0 0 0; background: #333; clear: both; }
         .state-banner-text { display: block; }
@@ -101,8 +119,9 @@
         .icon-btn.edit { background: var(--warning); color: black; border: none; font-weight: bold; }
         .icon-btn.delete { background: var(--danger); border: none; }
 
-        .state-o { background: var(--offense); color: white; border: 1px solid #64B5F6;}
-        .state-d { background: #C62828; color: white; border: 2px solid #EF5350;}
+        .state-we-disc { background: var(--active); color: white; border: 1px solid #64B5F6; box-shadow: 0 0 8px rgba(33,150,243,0.35); }
+        .state-they-disc { background: #C62828; color: white; border: 2px solid #EF5350; }
+        .state-neutral { background: #333; color: white; border: 1px solid #555; }
         .state-sub { background: #4A148C; color: white; border: 2px solid #CE93D8; }
 
         .list-row.sub-pick { outline: 2px solid var(--warning); box-shadow: 0 0 10px rgba(255,152,0,0.4); }
@@ -189,6 +208,7 @@
     <div class="tabs">
         <div class="tab active" onclick="switchTab('play-view')">Play</div>
         <div class="tab" onclick="switchTab('stats-view')">Stats</div>
+        <div class="tab" onclick="switchTab('history-view')">History</div>
         <div class="tab" onclick="switchTab('analytics-view')">Analytics</div>
         <div class="tab" onclick="switchTab('roster-view')">Roster</div>
         <div class="tab" onclick="switchTab('season-view')">Season</div>
@@ -205,6 +225,10 @@
             <option value="season">Season Leaders</option>
         </select>
         <div id="stats-content"></div>
+    </div>
+
+    <div id="history-view" class="view">
+        <div id="history-content"></div>
     </div>
     
     <div id="analytics-view" class="view">
@@ -286,9 +310,9 @@
     </div>
 
     <div id="tree-modal" class="full-modal">
-        <button class="btn btn-secondary" onclick="triggerHaptic(); closeTreeModal();" style="gap:8px;"><i data-lucide="arrow-left" style="width:18px;height:18px"></i> Back to Stats</button>
+        <button class="btn btn-secondary" onclick="triggerHaptic(); closeTreeModal();" style="gap:8px;"><i data-lucide="arrow-left" style="width:18px;height:18px"></i> Back to History</button>
         <h2 id="tree-title">Play Diagram</h2>
-        <p style="font-size:12px; color:var(--text-muted); margin-top:-10px;">Tap a player to view their profile.</p>
+        <p style="font-size:12px; color:var(--text-muted); margin-top:-10px;">Tap a player for their profile. Edit throw times (max 10s) if a pass was logged wrong.</p>
         <div id="tree-content" class="tree-container"></div>
     </div>
 
